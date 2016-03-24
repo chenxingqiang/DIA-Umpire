@@ -74,9 +74,34 @@ public class PeakCurve implements Serializable  {
             XYData pt = new XYData(point.getX(), point.getZ());
             SmoothData.AddPoint(pt);
         }
-        Bspline bspline = new Bspline();
-        SmoothData = bspline.Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
-        bspline = null;
+//
+//        System.out.println("\nstart:::");
+//        for (int i = 0; i < SmoothData.Data.size(); ++i) {
+//            XYData p = SmoothData.Data.get(i);
+//            System.out.print("(");
+//            System.out.print(p.getX());
+//            System.out.print(",");
+//            System.out.print(p.getY());
+//            System.out.print(")\t");
+//        }
+//        System.out.println();System.out.println();
+
+//        Bspline bspline = new Bspline();
+//        SmoothData = bspline.Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
+
+        SmoothData.Data.Finalize();// to sorted array
+        SmoothData = Bspline.Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
+
+//        for (int i = 0; i < SmoothData.Data.size(); ++i) {
+//            XYData p = SmoothData.Data.get(i);
+//            System.out.print("(");
+//            System.out.print(p.getX());
+//            System.out.print(",");
+//            System.out.print(p.getY());
+//            System.out.print(")\t");
+//        }
+//        System.out.println("\nend:::");
+
     }
 
     public void DoInterpolation() {

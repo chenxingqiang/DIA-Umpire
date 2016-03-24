@@ -28,81 +28,141 @@ import MSUmpire.BaseDataStructure.XYPointCollection;
  */
 public class Bspline {
 
-    private float[] bspline_T_ = null;
-
-    public XYPointCollection Run(XYPointCollection data, int PtNum, int smoothDegree) {
-        XYPointCollection bsplineCollection = new XYPointCollection();
-        int p = smoothDegree;
-        int n = data.Data.size() - 1;
-        int m = data.Data.size() + p;
-        bspline_T_ = new float[m + p];
-
-        if (data.Data.size() <= p) {
-            return data;
-        }
-
-        for (int i = 0; i <= n; i++) {
-            bspline_T_[i] = 0;
-            bspline_T_[m - i] = 1;
-        }
-        float intv = 1.0f / (m - 2 * p);
-        for (int i = 1; i <= (m - 1); i++) {
-            bspline_T_[p + i] = bspline_T_[p + i - 1] + intv;
-        }
-
-        float t;
-        for (int i = 0; i <= PtNum; i++) {
-            t = ((float) i / PtNum);
-            XYData pt = getbspline(data, t, n, p);
-            bsplineCollection.AddPoint(pt);
-        }
-        if (bsplineCollection.Data.get(bsplineCollection.PointCount() - 1).getX() < data.Data.get(data.PointCount() - 1).getX()) {
-            bsplineCollection.AddPoint(data.Data.get(data.PointCount() - 1));
-        }
-        if (bsplineCollection.Data.get(0).getX() > data.Data.get(0).getX()) {
-            bsplineCollection.AddPoint(data.Data.get(0));
-        }
-        bsplineCollection.Data.Finalize();
-        return bsplineCollection;
+    private Bspline() {
     }
 
-    XYData getbspline(XYPointCollection data, float t, int n, int p) {
-        XYData pt = new XYData(0, 0);
+    private static class Tls {
 
-        int itp = 0;
-        for (int i = 0; i <= n; i++) {
-            pt.setX(pt.getX() + data.Data.get(itp).getX() * bspline_base(i, p, t));
-            pt.setY(pt.getY() + data.Data.get(itp).getY() * bspline_base(i, p, t));
-            itp++;
-        }
-        return pt;
+        float[] arr_X = new float[1 << 5];
+        float[] arr_Y = new float[1 << 5];
+        float[] smoothed_X = new float[1 << 5];
+        float[] smoothed_Y = new float[1 << 5];
     }
 
-    float bspline_base(int i, int p, float t) {
-        float n, c1, c2;
-        float tn1 = 0;
-        float tn2 = 0;
-        if (p == 0) {
-            if (bspline_T_[i] <= t && t < bspline_T_[i + 1] && bspline_T_[i] < bspline_T_[i + 1]) {
-                n = 1;
-            } else {
-                n = 0;
-            }
-        } else {
-            if ((bspline_T_[i + p] - bspline_T_[i]) == 0) {
-                c1 = 0;
-            } else {
-                tn1 = bspline_base(i, (p - 1), t);
-                c1 = (t - bspline_T_[i]) / (bspline_T_[i + p] - bspline_T_[i]);
-            }
-            if ((bspline_T_[i + p + 1] - bspline_T_[i + 1]) == 0) {
-                c2 = 0;
-            } else {
-                tn2 = bspline_base((i + 1), (p - 1), t);
-                c2 = (bspline_T_[i + p + 1] - t) / (bspline_T_[i + p + 1] - bspline_T_[i + 1]);
-            }
-            n = (c1 * tn1) + (c2 * tn2);
+    private static final ThreadLocal<Tls> TLS = new ThreadLocal<Tls>() {
+        @Override
+        protected Tls initialValue() {
+            return new Tls();
         }
-        return n;
+    };
+
+    private static Tls get_tls(final int n, final int num_pts) {
+        final Tls t = TLS.get();
+        if (t.arr_X.length < n) {
+            t.arr_X = new float[n << 1];
+            t.arr_Y = new float[n << 1];
+        }
+        if (t.smoothed_X.length < num_pts) {
+            t.smoothed_X = new float[num_pts << 1];
+            t.smoothed_Y = new float[num_pts << 1];
+        }
+
+        return t;
+    }
+
+    public static XYPointCollection Run__0(final XYPointCollection data, final int num_pts, final int smoothDegree) {
+        assert smoothDegree==2;
+        final int n = data.PointCount() + 2;
+//    	final float[] arr_X=new float[n];
+//    	final float[] arr_Y=new float[n];
+//    	final float[] smoothed_X=new float[num_pts];
+//    	final float[] smoothed_Y=new float[num_pts];
+        final Tls t = get_tls(n, num_pts);
+
+        final float[] arr_X = t.arr_X;
+        final float[] arr_Y = t.arr_Y;
+        final float[] smoothed_X = t.smoothed_X;
+        final float[] smoothed_Y = t.smoothed_Y;
+        {
+            final XYData pt = data.Data.get(0);
+            arr_X[0] = arr_X[1] = pt.getX();
+            arr_Y[0] = arr_Y[1] = pt.getY();
+        }
+        for (int i = 1; i < n - 3; ++i) {
+            final XYData pt = data.Data.get(i);
+            arr_X[i + 1] = pt.getX();
+            arr_Y[i + 1] = pt.getY();
+        }
+        {
+            final XYData pt = data.Data.get(n - 3);
+            arr_X[n - 2] = arr_X[n - 1] = pt.getX();
+            arr_Y[n - 2] = arr_Y[n - 1] = pt.getY();
+        }
+        QuadBspline.get_smoothed(arr_X, n, num_pts, smoothed_X);
+        QuadBspline.get_smoothed(arr_Y, n, num_pts, smoothed_Y);
+        final XYPointCollection smoothed = new XYPointCollection();
+        for (int i = 0; i < num_pts; ++i) {
+            smoothed.AddPoint(smoothed_X[i], smoothed_Y[i]);
+        }
+        smoothed.Data.Finalize();
+        return smoothed;
+    }
+    public static XYPointCollection Run(final XYPointCollection data, int num_pts, final int smoothDegree) {
+        // this follows closely CC's implementation of bspline
+        assert smoothDegree==2;
+        ++num_pts; // to follow CC's method
+        final int n = data.PointCount();
+        final Tls t = get_tls(n, num_pts);
+
+        final float[] arr_X = t.arr_X;
+        final float[] arr_Y = t.arr_Y;
+        final float[] smoothed_X = t.smoothed_X;
+        final float[] smoothed_Y = t.smoothed_Y;
+
+        for (int i = 0; i < n; ++i) {
+            final XYData pt = data.Data.get(i);
+            arr_X[i] = pt.getX();
+            arr_Y[i] = pt.getY();
+        }
+        QuadBspline.get_smoothed(arr_X, n, num_pts, smoothed_X);
+        QuadBspline.get_smoothed(arr_Y, n, num_pts, smoothed_Y);
+        final XYPointCollection smoothed = new XYPointCollection();
+        for (int i = 0; i < num_pts; ++i) {
+            smoothed.AddPoint(smoothed_X[i], smoothed_Y[i]);
+        }
+        smoothed.Data.Finalize();
+        return smoothed;
+    }
+
+}
+
+class QuadBspline {
+    //https://en.wikipedia.org/wiki/B-spline
+
+    private QuadBspline() {
+        throw new AssertionError();
+    }
+
+    private static float square(final float num) {
+        return num * num;
+    }
+
+    /**
+     * first two entries of data must be equal last two entries of data must be
+     * equal
+     *
+     * @param data
+     * @param num_pts
+     * @return
+     */
+    public static void get_smoothed(final float[] data, final int n,
+            final int num_pts, final float[] ret) {
+
+//        assert data[0] == data[1];
+//        assert data[n - 1] == data[n - 2];
+        final int p = 2;//quadratic spline
+        final float int_len = ((n + p - 2) - 2) / (float) (num_pts - 1);
+
+        ret[0] = data[0];
+        for (int i = 1; i < num_pts - 1; ++i) {
+            final float t = 2 + i * int_len;
+            final int ti = (int) t;
+            final float rem = t - ti;
+            final float b0 = square(1 - rem) / 2,
+                    b2 = square(rem) / 2,
+                    b1 = 1 - b0 - b2;
+            ret[i] = b0 * data[ti - 2] + b1 * data[ti - 1] + b2 * data[ti];
+        }
+        ret[num_pts - 1] = data[n - 1];
     }
 }
