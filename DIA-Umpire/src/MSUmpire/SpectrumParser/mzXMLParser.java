@@ -436,9 +436,11 @@ public final class mzXMLParser  extends SpectrumParserBase{
         executorPool = Executors.newFixedThreadPool(NoCPUs);
         Iterator<Entry<Integer, Long>> iter = ScanIndex.entrySet().iterator();        
         Entry<Integer, Long> ent = iter.next();
-        Long currentIdx = ent.getValue();
+        long currentIdx = ent.getValue();
         int nextScanNo = ent.getKey();
-
+        final RandomAccessFile fileHandler;
+        try{fileHandler = new RandomAccessFile(filename, "r");}
+        catch(FileNotFoundException e){throw new RuntimeException(e);}
         while (iter.hasNext()) {
             ent = iter.next();
             long startposition = currentIdx;
@@ -450,10 +452,10 @@ public final class mzXMLParser  extends SpectrumParserBase{
             if (IncludedScans.contains(currentScanNo)) {
                 try {
                     byte[] buffer = new byte[(int) (nexposition - startposition)];
-                    RandomAccessFile fileHandler = new RandomAccessFile(filename, "r");
+//                    RandomAccessFile fileHandler = new RandomAccessFile(filename, "r");
                     fileHandler.seek(startposition);
                     fileHandler.read(buffer, 0, (int) (nexposition - startposition));
-                    fileHandler.close();
+//                    fileHandler.close();
                     String xmltext = new String(buffer);
                     if (ent.getKey() == Integer.MAX_VALUE) {
                         xmltext = xmltext.replaceAll("</msRun>", "");
@@ -464,13 +466,14 @@ public final class mzXMLParser  extends SpectrumParserBase{
                     ScanList.add(unit);
                     buffer = null;
                     xmltext = null;
-                    fileHandler = null;
+//                    fileHandler = null;
                 } catch (Exception ex) {
                     Logger.getRootLogger().error(ExceptionUtils.getStackTrace(ex));
                 }
             }
         }
-
+        try {fileHandler.close();}
+        catch (IOException ex) {throw new RuntimeException(ex);}
         for (MzXMLthreadUnit unit : ScanList) {
             executorPool.execute(unit);
         }

@@ -34,6 +34,7 @@ import MSUmpire.PeptidePeakClusterDetection.PDHandlerDIAMS2;
 import MSUmpire.SpectrumParser.SpectrumParserBase;
 import MSUmpire.SpectrumParser.mzXMLParser;
 import com.compomics.util.experiment.biology.ions.ElementaryIon;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -159,11 +160,11 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
         ArrayList<PseudoMSMSProcessing> ScanList = new ArrayList<>();
         ExecutorService executorPool = Executors.newFixedThreadPool(NoCPUs);
         for (PeakCluster ms1cluster : ms1lcms.PeakClusters) {
-            if (DIA_MZ_Range.getX() <= ms1cluster.GetMaxMz() && DIA_MZ_Range.getY() >= ms1cluster.TargetMz() && FragmentsClu2Cur.containsKey(ms1cluster.Index)) {
-                ArrayList<PrecursorFragmentPairEdge> frags = FragmentsClu2Cur.get(ms1cluster.Index);
-                for (PrecursorFragmentPairEdge frag : frags) {
-                    ms1cluster.GroupedFragmentPeaks.add(frag);
-                }
+            final ArrayList<PrecursorFragmentPairEdge> frags = FragmentsClu2Cur.get(ms1cluster.Index);
+            if (frags!=null && DIA_MZ_Range.getX() <= ms1cluster.GetMaxMz() && DIA_MZ_Range.getY() >= ms1cluster.TargetMz()) {
+//            if (DIA_MZ_Range.getX() <= ms1cluster.GetMaxMz() && DIA_MZ_Range.getY() >= ms1cluster.TargetMz() && FragmentsClu2Cur.containsKey(ms1cluster.Index)) {
+//                ArrayList<PrecursorFragmentPairEdge> frags = FragmentsClu2Cur.get(ms1cluster.Index);
+                ms1cluster.GroupedFragmentPeaks.addAll(frags);
                 if (Last_MZ_Range == null || Last_MZ_Range.getY() < ms1cluster.TargetMz()) {
                     PseudoMSMSProcessing mSMSProcessing = new PseudoMSMSProcessing(ms1cluster, parameter);
                     ScanList.add(mSMSProcessing);
@@ -184,12 +185,19 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
 
         String mgffile = FilenameUtils.getFullPath(ParentmzXMLName) + GetQ1Name() + ".mgf.temp";
         String mgffile2 = FilenameUtils.getFullPath(ParentmzXMLName) + GetQ2Name() + ".mgf.temp";
-        FileWriter mapwriter = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q1", true);
-        FileWriter mapwriter2 = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q2", true);
+//        FileWriter mapwriter = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q1", true);
+//        FileWriter mapwriter2 = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q2", true);
 
-        FileWriter mgfWriter = new FileWriter(mgffile, true);
-        FileWriter mgfWriter2 = new FileWriter(mgffile2, true);
-
+//        FileWriter mgfWriter = new FileWriter(mgffile, true);
+//        FileWriter mgfWriter2 = new FileWriter(mgffile2, true);
+        final BufferedWriter
+                mapwriter = DIAPack.get_file(DIAPack.OutputFile.ScanClusterMapping_Q1,
+                        FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q1"),
+                mapwriter2 = DIAPack.get_file(DIAPack.OutputFile.ScanClusterMapping_Q2
+                        ,FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q2"),
+                mgfWriter = DIAPack.get_file(DIAPack.OutputFile.Mgf_Q1, mgffile),
+                mgfWriter2 = DIAPack.get_file(DIAPack.OutputFile.Mgf_Q2, mgffile2);
+        
         for (PseudoMSMSProcessing mSMSProcessing : ScanList) {
             if (MatchedFragmentMap.size() > 0) {
                 mSMSProcessing.RemoveMatchedFrag(MatchedFragmentMap);
@@ -198,57 +206,64 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
             XYPointCollection Scan = mSMSProcessing.GetScan();
 
             if (Scan != null && Scan.PointCount() > parameter.MinFrag) {
-                StringBuilder mgfString = new StringBuilder();
+//                StringBuilder mgfString = new StringBuilder();
+                
                 if (mSMSProcessing.Precursorcluster.IsotopeComplete(3)) {
+                    final BufferedWriter mgfString = mgfWriter;
                     parentDIA.Q1Scan++;
                     mgfString.append("BEGIN IONS\n");
-                    mgfString.append("PEPMASS=").append(mSMSProcessing.Precursorcluster.TargetMz()).append("\n");
-                    mgfString.append("CHARGE=").append(mSMSProcessing.Precursorcluster.Charge).append("+\n");
-                    mgfString.append("RTINSECONDS=").append(mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f).append("\n");
-                    mgfString.append("TITLE=").append(GetQ1Name()).append(".").append(parentDIA.Q1Scan).append(".").append(parentDIA.Q1Scan).append(".").append(mSMSProcessing.Precursorcluster.Charge).append("\n");
+                    mgfString.append("PEPMASS=").append(String.valueOf(mSMSProcessing.Precursorcluster.TargetMz())).append("\n");
+                    mgfString.append("CHARGE=").append(String.valueOf(mSMSProcessing.Precursorcluster.Charge)).append("+\n");
+                    mgfString.append("RTINSECONDS=").append(String.valueOf(mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f)).append("\n");
+                    mgfString.append("TITLE=").append(GetQ1Name()).append(".").append(String.valueOf(parentDIA.Q1Scan)).append(".").append(String.valueOf(parentDIA.Q1Scan)).append(".").append(String.valueOf(mSMSProcessing.Precursorcluster.Charge)).append("\n");
                     for (int i = 0; i < Scan.PointCount(); i++) {
-                        mgfString.append(Scan.Data.get(i).getX()).append(" ").append(Scan.Data.get(i).getY()).append("\n");
+                        mgfString.append(String.valueOf(Scan.Data.get(i).getX())).append(" ").append(String.valueOf(Scan.Data.get(i).getY())).append("\n");
                     }
                     mgfString.append("END IONS\n\n");
                     mapwriter.write(parentDIA.Q1Scan + "_" + mSMSProcessing.Precursorcluster.Index + "\n");
-                    mgfWriter.write(mgfString.toString());
+//                    mgfWriter.write(mgfString.toString());
                     //} else if (mSMSProcessing.Precursorcluster.IsotopeComplete(2)) {
                 } else {
+                    final BufferedWriter mgfString = mgfWriter2;
                     parentDIA.Q2Scan++;
                     mgfString.append("BEGIN IONS\n");
-                    mgfString.append("PEPMASS=").append(mSMSProcessing.Precursorcluster.TargetMz()).append("\n");
-                    mgfString.append("CHARGE=").append(mSMSProcessing.Precursorcluster.Charge).append("+\n");
-                    mgfString.append("RTINSECONDS=").append(mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f).append("\n");
-                    mgfString.append("TITLE=").append(GetQ2Name()).append(".").append(parentDIA.Q2Scan).append(".").append(parentDIA.Q2Scan).append(".").append(mSMSProcessing.Precursorcluster.Charge).append("\n");
+                    mgfString.append("PEPMASS=").append(String.valueOf(mSMSProcessing.Precursorcluster.TargetMz())).append("\n");
+                    mgfString.append("CHARGE=").append(String.valueOf(mSMSProcessing.Precursorcluster.Charge)).append("+\n");
+                    mgfString.append("RTINSECONDS=").append(String.valueOf(mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f)).append("\n");
+                    mgfString.append("TITLE=").append(GetQ2Name()).append(".").append(String.valueOf(parentDIA.Q2Scan)).append(".").append(String.valueOf(parentDIA.Q2Scan)).append(".").append(String.valueOf(mSMSProcessing.Precursorcluster.Charge)).append("\n");
                     for (int i = 0; i < Scan.PointCount(); i++) {
-                        mgfString.append(Scan.Data.get(i).getX()).append(" ").append(Scan.Data.get(i).getY()).append("\n");
+                        mgfString.append(String.valueOf(Scan.Data.get(i).getX())).append(" ").append(String.valueOf(Scan.Data.get(i).getY())).append("\n");
                     }
                     mgfString.append("END IONS\n\n");
                     mapwriter2.write(parentDIA.Q2Scan + "_" + mSMSProcessing.Precursorcluster.Index + "\n");
-                    mgfWriter2.write(mgfString.toString());
+//                    mgfWriter2.write(mgfString.toString());
                 }
             }
             mSMSProcessing.Precursorcluster.GroupedFragmentPeaks.clear();
         }
-        mgfWriter2.close();
-        mgfWriter.close();
-        mapwriter.close();
-        mapwriter2.close();
+//        mgfWriter2.close();
+//        mgfWriter.close();
+//        mapwriter.close();
+//        mapwriter2.close();
     }
 
     private void PrepareMGF_UnfragmentIon() throws IOException {
         String mgffile4 = FilenameUtils.getFullPath(ParentmzXMLName) + GetQ3Name() + ".mgf.temp";
-        FileWriter mgfWriter4 = new FileWriter(mgffile4, true);
-        FileWriter mapwriter3 = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q3", true);
+//        FileWriter mgfWriter4 = new FileWriter(mgffile4, true);
+        final BufferedWriter mgfWriter4 = DIAPack.get_file(DIAPack.OutputFile.Mgf_Q3, mgffile4);
 
+//        FileWriter mapwriter3 = new FileWriter(FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q3", true);
+        final BufferedWriter mapwriter3 = DIAPack.get_file(DIAPack.OutputFile.ScanClusterMapping_Q3,
+                FilenameUtils.getFullPath(ParentmzXMLName) + FilenameUtils.getBaseName(ParentmzXMLName) + ".ScanClusterMapping_Q3");
+        
         ArrayList<PseudoMSMSProcessing> ScanList = new ArrayList<>();
         ExecutorService executorPool = Executors.newFixedThreadPool(NoCPUs);
         for (PeakCluster ms2cluster : PeakClusters) {
-            if (DIA_MZ_Range.getX() <= ms2cluster.TargetMz() && DIA_MZ_Range.getY() >= ms2cluster.TargetMz() && UnFragIonClu2Cur.containsKey(ms2cluster.Index)) {
-                ArrayList<PrecursorFragmentPairEdge> frags = UnFragIonClu2Cur.get(ms2cluster.Index);
-                for (PrecursorFragmentPairEdge frag : frags) {
-                    ms2cluster.GroupedFragmentPeaks.add(frag);
-                }
+            ArrayList<PrecursorFragmentPairEdge> frags = UnFragIonClu2Cur.get(ms2cluster.Index);
+            if (frags!=null && DIA_MZ_Range.getX() <= ms2cluster.TargetMz() && DIA_MZ_Range.getY() >= ms2cluster.TargetMz()) {
+//            if (DIA_MZ_Range.getX() <= ms2cluster.TargetMz() && DIA_MZ_Range.getY() >= ms2cluster.TargetMz() && UnFragIonClu2Cur.containsKey(ms2cluster.Index)) {
+//                ArrayList<PrecursorFragmentPairEdge> frags = UnFragIonClu2Cur.get(ms2cluster.Index);
+                ms2cluster.GroupedFragmentPeaks.addAll(frags);
                 PseudoMSMSProcessing mSMSProcessing = new PseudoMSMSProcessing(ms2cluster, parameter);
                 executorPool.execute(mSMSProcessing);
                 ScanList.add(mSMSProcessing);
@@ -269,26 +284,40 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
 
             if (Scan != null && Scan.PointCount() > parameter.MinFrag) {
                 parentDIA.Q3Scan++;
-                StringBuilder mgfString = new StringBuilder();
-                mgfString.append("BEGIN IONS\n");
-                mgfString.append("PEPMASS=" + mSMSProcessing.Precursorcluster.TargetMz() + "\n");
-                mgfString.append("CHARGE=" + mSMSProcessing.Precursorcluster.Charge + "+\n");
-                mgfString.append("RTINSECONDS=" + mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f + "\n");
-                mgfString.append("TITLE=").append(GetQ3Name()).append(".").append(parentDIA.Q3Scan).append(".").append(parentDIA.Q3Scan).append(".").append(mSMSProcessing.Precursorcluster.Charge).append("\n");
-                //mgfString.append("TITLE=" + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
-                //mgfString.append("TITLE=" GetQ3Name() + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
+//                StringBuilder mgfString = new StringBuilder();
+//                mgfString.append("BEGIN IONS\n");
+//                mgfString.append("PEPMASS=" + mSMSProcessing.Precursorcluster.TargetMz() + "\n");
+//                mgfString.append("CHARGE=" + mSMSProcessing.Precursorcluster.Charge + "+\n");
+//                mgfString.append("RTINSECONDS=" + mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f + "\n");
+//                mgfString.append("TITLE=").append(GetQ3Name()).append(".").append(parentDIA.Q3Scan).append(".").append(parentDIA.Q3Scan).append(".").append(mSMSProcessing.Precursorcluster.Charge).append("\n");
+//                //mgfString.append("TITLE=" + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
+//                //mgfString.append("TITLE=" GetQ3Name() + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
+//
+//                for (int i = 0; i < Scan.PointCount(); i++) {
+//                    mgfString.append(Scan.Data.get(i).getX()).append(" ").append(Scan.Data.get(i).getY()).append("\n");
+//                }
+//                mgfString.append("END IONS\n\n");
+//                mgfWriter4.write(mgfString.toString());
+                
+                mgfWriter4.append("BEGIN IONS\n")
+                        .append("PEPMASS=" + mSMSProcessing.Precursorcluster.TargetMz() + "\n")
+                        .append("CHARGE=" + mSMSProcessing.Precursorcluster.Charge + "+\n")
+                        .append("RTINSECONDS=" + mSMSProcessing.Precursorcluster.PeakHeightRT[0] * 60f + "\n")
+                        .append("TITLE=").append(GetQ3Name()).append(".").append(Integer.toString(parentDIA.Q3Scan)).append(".").append(Integer.toString(parentDIA.Q3Scan)).append(".").append(Integer.toString(mSMSProcessing.Precursorcluster.Charge)).append("\n");
+                //mgfWriter4.append("TITLE=" + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
+                //mgfWriter4.append("TITLE=" GetQ3Name() + WindowID + ";ClusterIndex:" + mSMSProcessing.ms2cluster.Index + "\n");
 
                 for (int i = 0; i < Scan.PointCount(); i++) {
-                    mgfString.append(Scan.Data.get(i).getX()).append(" ").append(Scan.Data.get(i).getY()).append("\n");
+                    mgfWriter4.append(Float.toString(Scan.Data.get(i).getX())).append(" ").append(Float.toString(Scan.Data.get(i).getY())).append("\n");
                 }
-                mgfString.append("END IONS\n\n");
-                mgfWriter4.write(mgfString.toString());
+                mgfWriter4.append("END IONS\n\n");
+                
                 mapwriter3.write(parentDIA.Q3Scan + ";" + WindowID + ";" + mSMSProcessing.Precursorcluster.Index + "\n");
             }
             mSMSProcessing.Precursorcluster.GroupedFragmentPeaks.clear();
         }
-        mgfWriter4.close();
-        mapwriter3.close();
+//        mgfWriter4.close();
+//        mapwriter3.close();
     }
     
     public void GenerateMGF(LCMSPeakMS1 ms1lcms) throws IOException, InterruptedException {

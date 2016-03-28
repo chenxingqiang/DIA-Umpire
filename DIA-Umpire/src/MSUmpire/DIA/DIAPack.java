@@ -38,13 +38,18 @@ import MSUmpire.SpectrumParser.SpectrumParserBase;
 import MSUmpire.SpectrumParser.mzXMLParser;
 import MSUmpire.Utility.MSConvert;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -970,6 +975,47 @@ public class DIAPack {
         IDsummary.WriteLCMSIDSerialization(Filename, tag);
     }
 
+//    private static final TreeSortedMap<String, BufferedWriter> file_handlers = new TreeSortedMap<>();
+//
+//    private static final org.eclipse.collections.api.block.function.Function<String, BufferedWriter> FO = new org.eclipse.collections.api.block.function.Function<String, BufferedWriter>() {
+//        @Override
+//        public BufferedWriter valueOf(final String filename) {
+//            try {
+//                return Files.newBufferedWriter(Paths.get(filename), StandardCharsets.ISO_8859_1);
+//            } catch (IOException ex) {
+//                throw new RuntimeException(ex);
+//            }
+//        }
+//    };
+//
+//    public static BufferedWriter get_file(final String filename) {
+//        return DIAPack.file_handlers.getIfAbsentPutWithKey(filename, DIAPack.FO);
+//    }
+    public static enum OutputFile{
+        ScanClusterMapping_Q1,
+        Mgf_Q1,
+        ScanClusterMapping_Q2,
+        Mgf_Q2,
+        ScanClusterMapping_Q3,
+        Mgf_Q3;
+    }
+    private static final EnumMap<OutputFile, BufferedWriter> file_handlers = new EnumMap<>(OutputFile.class);
+
+    public static BufferedWriter get_file(final OutputFile f,final String filename) {
+        final BufferedWriter bw = DIAPack.file_handlers.get(f);
+        if (bw == null) {
+            final BufferedWriter bw2;
+            try {
+                bw2 = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.ISO_8859_1);
+            } catch (final IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            DIAPack.file_handlers.put(f, bw2);
+            return bw2;
+        }
+        return bw;
+    }
+
     //Perform MS2 fragment feature detection
     public void DIAMS2PeakDetection() throws SQLException, IOException, InterruptedException, ExecutionException, FileNotFoundException, Exception {
         int count = 1;
@@ -982,6 +1028,8 @@ public class DIAPack {
             DIAwindow.ClearAllPeaks();
             Logger.getRootLogger().info("==================================================================================");
         }
+        for(final BufferedWriter bw : DIAPack.file_handlers.values())
+            bw.close();
         RenameMGF("");
     }
 
@@ -990,7 +1038,7 @@ public class DIAPack {
         String mgffile2 = FilenameUtils.getFullPath(Filename) + GetQ2Name() + ".mgf.temp";
         String mgffile3 = FilenameUtils.getFullPath(Filename) + GetQ3Name() + ".mgf.temp";
         File file = new File(mgffile);
-        file = new File(mgffile);
+
         if (file.exists()) {
             file.renameTo(new File(file.getAbsolutePath().replace(".mgf.temp", tag + ".mgf")));
         }
