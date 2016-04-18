@@ -50,6 +50,17 @@ public class mzXMLReadUnit {
     public mzXMLReadUnit(String XMLtext) {
         this.XMLtext = XMLtext;
     }
+    private static synchronized DocumentBuilder get_docBuilder() {
+        try{return DocumentBuilderFactory.newInstance().newDocumentBuilder();}
+        catch(ParserConfigurationException ex){throw new RuntimeException(ex);}
+    }
+
+    private static final ThreadLocal<DocumentBuilder> tls= new ThreadLocal<DocumentBuilder>(){
+        @Override
+        protected DocumentBuilder initialValue(){
+            return get_docBuilder();
+        }
+    };
 
     public ScanData Parse() throws ParserConfigurationException, SAXException, IOException, DataFormatException {
         if (XMLtext.replaceFirst("</scan>", "").contains("</scan>")) {
@@ -59,8 +70,8 @@ public class mzXMLReadUnit {
             XMLtext += "</scan>";
         }
         ScanData scan = new ScanData();
-        DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();
+        final DocumentBuilder docBuilder = tls.get();
+        docBuilder.reset();
         InputSource input = new InputSource(new StringReader(XMLtext));
         Document doc = null;
         try {
@@ -184,11 +195,6 @@ public class mzXMLReadUnit {
         if ("calibration".equals(scan.scanType)) {
             scan.MsLevel = -1;
         }
-        docBuilder = null;
-        docBuilderFactory = null;
-        input = null;
-        doc = null;
-        root = null;
         XMLtext = null;
         scan.Data.Finalize();
         return scan;
