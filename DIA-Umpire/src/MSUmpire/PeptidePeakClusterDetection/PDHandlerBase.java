@@ -37,6 +37,7 @@ import net.sf.javaml.core.kdtree.KDTree;
 import net.sf.javaml.core.kdtree.KeySizeException;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
 /**
  * Peak detection processing parent class
@@ -44,7 +45,7 @@ import org.apache.log4j.Logger;
  */
 public class PDHandlerBase {
     
-    protected HashSet<String> IncludedHashMap;
+//    protected HashSet<String> IncludedHashMap;
     protected HashMap<XYData,Boolean> InclusionFound=new HashMap();
     protected XYPointCollection InclusionRT=new XYPointCollection();
     protected KDTree InclusionRange=new KDTree(2);    
@@ -122,10 +123,15 @@ public class PDHandlerBase {
         ClearRawPeaks();
     }
     
+    static private long unique_long_id(final int scandata, final XYData scanData){
+        return ((long)scandata << 32L) | Float.floatToRawIntBits(scanData.getX());
+    }
+
     //Detect all m/z trace / peak curves
     protected void FindAllMzTracePeakCurves(ScanCollection scanCollection) throws IOException {
+//        final HashSet<String> IncludedHashMap = new HashSet<>();
+        final LongHashSet includedHashSet = new LongHashSet();
 
-        IncludedHashMap = new HashSet<>();
         Logger.getRootLogger().info("Processing all scans to detect possible m/z peak curves....");
         
         float preRT = 0f;
@@ -154,11 +160,12 @@ public class PDHandlerBase {
                 }
                 
                 //Check if the current peak has been included in previously developed peak curves
-                if (!IncludedHashMap.contains(scanNO + "_" + peak.getX())) {//The peak hasn't been included
-                   
+                if (includedHashSet.add(unique_long_id(scanNO, peak))) {//The peak hasn't been included, add it and execute the following
+//                if (!IncludedHashMap.contains(scanNO + "_" + peak.getX())) {//The peak hasn't been included
                     //The current peak will be the starting peak of a new peak curve
                     //Add it to the hash table
-                    IncludedHashMap.add(scanNO + "_" + peak.getX());
+
+//                    IncludedHashMap.add(scanNO + "_" + peak.getX());
 
                     float startmz = peak.getX();
                     float startint = peak.getY();
@@ -166,9 +173,12 @@ public class PDHandlerBase {
                    //Find the maximum peak within PPM window as the starting peak
                     for (int j = i + 1; j < scanData.PointCount(); j++) {
                         XYData currentpeak = scanData.Data.get(j);
-                        if (!IncludedHashMap.contains(scanNO + "_" + currentpeak.getX())) {
+                        final long id_scanNo_currentpeak=unique_long_id(scanNO, currentpeak);
+                        if (!includedHashSet.contains(id_scanNo_currentpeak)) {
+//                        if (!IncludedHashMap.contains(scanNO + "_" + currentpeak.getX())) {
                             if (InstrumentParameter.CalcPPM(currentpeak.getX(), startmz) <= PPM) {
-                                IncludedHashMap.add(scanNO + "_" + currentpeak.getX());
+                                includedHashSet.add(id_scanNo_currentpeak);
+//                                IncludedHashMap.add(scanNO + "_" + currentpeak.getX());
 
                                 if (currentpeak.getY() >= startint) {
                                     startmz = currentpeak.getX();
@@ -221,14 +231,17 @@ public class PDHandlerBase {
                                 continue;
                             }
                             //Check if the peak has been included or not
-                            if (!IncludedHashMap.contains(scanNO2 + "_" + currentpeak.getX())) {
+                            final long id_scanNO2_currentpeak=unique_long_id(scanNO2, currentpeak);
+                            if (!includedHashSet.contains(id_scanNO2_currentpeak)) {
+//                            if (!IncludedHashMap.contains(scanNO2 + "_" + currentpeak.getX())) {
                                 if (InstrumentParameter.CalcPPM(currentpeak.getX(), Peakcurve.TargetMz) > PPM) {
                                     if (currentpeak.getX() > Peakcurve.TargetMz) {
                                         break;
                                     }
                                 } else {
                                     //////////The peak is in the ppm window, select the highest peak
-                                    IncludedHashMap.add(scanNO2 + "_" + currentpeak.getX());
+                                    includedHashSet.add(id_scanNO2_currentpeak);
+//                                    IncludedHashMap.add(scanNO2 + "_" + currentpeak.getX());
                                     if (currentint < currentpeak.getY()) {
                                         currentmz = currentpeak.getX();
                                         currentint = currentpeak.getY();
@@ -268,9 +281,7 @@ public class PDHandlerBase {
             }
         }
 
-        //System.out.print("PSM removed (PeakCurve generation):" + PSMRemoved );         
-        IncludedHashMap.clear();
-        IncludedHashMap = null;
+        //System.out.print("PSM removed (PeakCurve generation):" + PSMRemoved );
 
         int i = 1;
         //Assign peak curve index
