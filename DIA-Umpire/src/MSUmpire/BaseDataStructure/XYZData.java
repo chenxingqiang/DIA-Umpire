@@ -28,10 +28,7 @@ import java.io.Serializable;
 public class XYZData implements Comparable<XYZData>, Serializable {
     private static final long serialVersionUID = 185861984615L;
 
-//    private float X;
-//    private float Y;
-//    private float Z;
-    private float[] xyzdata = new float[3];
+    private float X,Y,Z;
 
     public XYZData(float x, float y, float z) {
         setX(x);
@@ -48,42 +45,42 @@ public class XYZData implements Comparable<XYZData>, Serializable {
      * @return the X
      */
     public float getX() {
-        return xyzdata[0];
+        return X;
     }
 
     /**
      * @param X the X to set
      */
     public void setX(float X) {
-        xyzdata[0] = X;
+        this.X = X;
     }
 
     /**
      * @return the Y
      */
     public float getY() {
-        return xyzdata[1];
+        return Y;
     }
 
     /**
      * @param Y the Y to set
      */
     public void setY(float Y) {
-        xyzdata[1] = Y;
+        this.Y = Y;
     }
 
     /**
      * @return the Z
      */
     public float getZ() {
-        return xyzdata[2];
+        return Z;
     }
 
     /**
      * @param Z the Z to set
      */
     public void setZ(float Z) {
-        xyzdata[2] = Z;
+        this.Z = Z;
     }
 
 }
