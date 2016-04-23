@@ -24,6 +24,7 @@ import MSUmpire.BaseDataStructure.ScanCollection;
 import MSUmpire.BaseDataStructure.SpectralDataType;
 import MSUmpire.BaseDataStructure.XYData;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -33,6 +34,8 @@ import java.util.concurrent.*;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
+import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
+import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
 
@@ -378,7 +381,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
 
         StartScanNo = GetStartScan(startTime);        
         EndScanNo = GetEndScan(endTime);
-        ArrayList<Integer> IncludedScans=new ArrayList<>();
+//        ArrayList<Integer> IncludedScans=new ArrayList<>();
+        final IntHashSet IncludedScans=new IntHashSet();
         for(int scannum :dIA_Setting.DIAWindows.get(DIAWindow)){
             if(scannum >= StartScanNo && scannum <= EndScanNo){
                 IncludedScans.add(scannum);
@@ -410,7 +414,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
 
         StartScanNo = GetStartScan(startTime);        
         EndScanNo = GetEndScan(endTime);
-        ArrayList<Integer> IncludedScans=new ArrayList<>();
+//        ArrayList<Integer> IncludedScans=new ArrayList<>();
+        final IntHashSet IncludedScans=new IntHashSet();
         for(int scannum : dIA_Setting.MS1Windows.get(MS1Window)){
             if(scannum >= StartScanNo && scannum <= EndScanNo){
                 IncludedScans.add(scannum);
@@ -430,10 +435,13 @@ public final class mzXMLParser  extends SpectrumParserBase{
     }
        
     //Parse scans given a list of scan numbers
-    private List<MzXMLthreadUnit>  ParseScans(ArrayList<Integer> IncludedScans){
+//    private List<MzXMLthreadUnit>  ParseScans(ArrayList<Integer> IncludedScans){
+    private List<MzXMLthreadUnit>  ParseScans(final IntHashSet IncludedScans){
          List<MzXMLthreadUnit> ScanList=new ArrayList<>();
-        ExecutorService executorPool = null;
-        executorPool = Executors.newFixedThreadPool(NoCPUs);
+         ArrayList<ForkJoinTask<?>> futures = new ArrayList<>();
+//        ExecutorService executorPool = null;
+//        executorPool = Executors.newFixedThreadPool(NoCPUs);
+        final ForkJoinPool fjPool= new ForkJoinPool(NoCPUs);
         Iterator<Entry<Integer, Long>> iter = ScanIndex.entrySet().iterator();        
         Entry<Integer, Long> ent = iter.next();
         long currentIdx = ent.getValue();
@@ -441,6 +449,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
         final RandomAccessFile fileHandler;
         try{fileHandler = new RandomAccessFile(filename, "r");}
         catch(FileNotFoundException e){throw new RuntimeException(e);}
+        byte[] buffer = new byte[1<<10];
+
         while (iter.hasNext()) {
             ent = iter.next();
             long startposition = currentIdx;
@@ -451,22 +461,26 @@ public final class mzXMLParser  extends SpectrumParserBase{
 
             if (IncludedScans.contains(currentScanNo)) {
                 try {
-                    byte[] buffer = new byte[(int) (nexposition - startposition)];
+                    final int bufsize =  (int) (nexposition - startposition);
+                    if(buffer.length<bufsize)
+                        buffer = new byte[Math.max(bufsize,buffer.length<<1)];
+//                    byte[] buffer = new byte[bufsize];
 //                    RandomAccessFile fileHandler = new RandomAccessFile(filename, "r");
                     fileHandler.seek(startposition);
-                    fileHandler.read(buffer, 0, (int) (nexposition - startposition));
+                    fileHandler.read(buffer, 0, bufsize);
 //                    fileHandler.close();
-                    String xmltext = new String(buffer);
+//                    String xmltext = new String(buffer);
+                    String xmltext = new String(buffer,0,bufsize,StandardCharsets.ISO_8859_1);
                     if (ent.getKey() == Integer.MAX_VALUE) {
                         xmltext = xmltext.replaceAll("</msRun>", "");
-                        buffer = null;
                     }
                     boolean ReadPeak = true;
-                    MzXMLthreadUnit unit = new MzXMLthreadUnit(xmltext, parameter, datatype, ReadPeak);
+                    final MzXMLthreadUnit unit = new MzXMLthreadUnit(xmltext, parameter, datatype, ReadPeak);
+                    futures.add(fjPool.submit(unit));
                     ScanList.add(unit);
-                    buffer = null;
-                    xmltext = null;
-//                    fileHandler = null;
+                    final int step=fjPool.getParallelism() * 0x100;
+                    if ((ScanList.size() % step) == 0)
+                        futures.get(futures.size()-step).get();
                 } catch (Exception ex) {
                     Logger.getRootLogger().error(ExceptionUtils.getStackTrace(ex));
                 }
@@ -474,19 +488,19 @@ public final class mzXMLParser  extends SpectrumParserBase{
         }
         try {fileHandler.close();}
         catch (IOException ex) {throw new RuntimeException(ex);}
-        for (MzXMLthreadUnit unit : ScanList) {
-            executorPool.execute(unit);
-        }
-        executorPool.shutdown();
-
-        try {
-            executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            Logger.getRootLogger().info("interrupted..");
-        }
-        executorPool = null;
-        ent = null;
-        iter = null;
+        fjPool.shutdown();
+        try {fjPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);}
+        catch (InterruptedException ex) {throw new RuntimeException(ex);}
+//        for (MzXMLthreadUnit unit : ScanList) {
+//            executorPool.execute(unit);
+//        }
+//        executorPool.shutdown();
+//
+//        try {
+//            executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+//        } catch (InterruptedException e) {
+//            Logger.getRootLogger().info("interrupted..");
+//        }
         return ScanList;
     }
     
@@ -495,7 +509,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
         ScanCollection scanCollection = InitializeScanCollection();
         Logger.getRootLogger().debug("Memory usage before loading scans:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB (" + NoCPUs + " threads)");
 
-        ArrayList<Integer> IncludedScans = new ArrayList<>();
+//        ArrayList<Integer> IncludedScans = new ArrayList<>();
+        final IntArrayList IncludedScans = new IntArrayList();
         
         for(int ScanNum : MsLevelList.keySet()){
             if(MsLevelList.get(ScanNum)==1 && MS1Included){
@@ -514,8 +529,11 @@ public final class mzXMLParser  extends SpectrumParserBase{
         StartScanNo = GetStartScan(startTime);        
         EndScanNo = GetEndScan(endTime);
         
-        ArrayList<Integer> temp=new ArrayList<>();
-        for(int scannum : IncludedScans){
+//        ArrayList<Integer> temp=new ArrayList<>();
+        final IntHashSet temp = new IntHashSet();
+//        for(int scannum : IncludedScans){
+        for(int i=0; i<IncludedScans.size(); ++i){
+            final int scannum = IncludedScans.get(i);
             if(scannum >= StartScanNo && scannum <= EndScanNo){
                 temp.add(scannum);
             }

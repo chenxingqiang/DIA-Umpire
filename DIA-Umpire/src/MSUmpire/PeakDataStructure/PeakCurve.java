@@ -27,6 +27,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.PriorityQueue;
+import org.eclipse.collections.impl.list.mutable.primitive.FloatArrayList;
+import org.eclipse.collections.impl.set.mutable.primitive.ByteHashSet;
+
 
 /**
  * Single m/z trace peak curve
@@ -59,13 +62,16 @@ public class PeakCurve implements Serializable  {
     public boolean CheckState = false;
     public float ConflictCorr = 0f;
     public boolean Grouped = false;
-    public transient HashSet<Integer> ChargeGrouped=new HashSet<>();
+//    public transient HashSet<Integer> ChargeGrouped=new HashSet<>();
+    public transient ByteHashSet ChargeGrouped=new ByteHashSet();
     public float MzVar = -1f;
     public transient SortedRidgeCollectionClass PeakRidgeList;
     public transient WaveletMassDetector waveletMassDetector;
     private transient ArrayList<XYZData> PeakRegionList;
-    public transient ArrayList<Float> RegionRidge;
-    private transient ArrayList<ArrayList<Float>> NoRidgeRegion;
+//    public transient ArrayList<Float> RegionRidge;
+    public transient FloatArrayList RegionRidge;
+//    private transient ArrayList<ArrayList<Float>> NoRidgeRegion;
+    private transient ArrayList<FloatArrayList> NoRidgeRegion;
     public InstrumentParameter parameter;
 
     //using B-spline to generate smoothed peak signals
@@ -214,7 +220,8 @@ public class PeakCurve implements Serializable  {
 
         if (PeakRidgeList.size() <= 1) {
             PeakRegionList.add(new XYZData(SmoothData.Data.get(0).getX(), ApexRT, SmoothData.Data.get(SmoothData.PointCount() - 1).getX()));
-            ArrayList<Float> RidgeRTs = new ArrayList<>();
+//            ArrayList<Float> RidgeRTs = new ArrayList<>();
+            final FloatArrayList RidgeRTs = new FloatArrayList();
             RidgeRTs.add(ApexRT);
             NoRidgeRegion.add(RidgeRTs);
         }
@@ -269,7 +276,8 @@ public class PeakCurve implements Serializable  {
             int right = PeakRidgeList.size() - 1;
             FindSplitPoint(left, right, ValleyPoints, Splitpoints);
 
-            ArrayList<Float> RidgeRTs = new ArrayList<>();
+//            ArrayList<Float> RidgeRTs = new ArrayList<>();
+            FloatArrayList RidgeRTs = new FloatArrayList();
             startidx = 0;
             PeakRidge maxridge = PeakRidgeList.get(0);
 
@@ -283,7 +291,8 @@ public class PeakCurve implements Serializable  {
                     NoRidgeRegion.add(RidgeRTs);
 
                     maxridge = PeakRidgeList.get(i + 1);
-                    RidgeRTs = new ArrayList<>();
+//                    RidgeRTs = new ArrayList<>();
+                    RidgeRTs = new FloatArrayList();
                     startidx = i + 1;
                 }
             }

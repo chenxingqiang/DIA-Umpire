@@ -22,16 +22,17 @@ package MSUmpire.PeptidePeakClusterDetection;
 import MSUmpire.BaseDataStructure.InstrumentParameter;
 import MSUmpire.PeakDataStructure.PeakCurve;
 import java.util.ArrayList;
+import java.util.concurrent.Callable;
 
 /**
  * Peak shape smoothing process thread unit
  * @author Chih-Chiang Tsou <chihchiang.tsou@gmail.com>
  */
-public class PeakCurveSmoothingUnit implements Runnable {
+public class PeakCurveSmoothingUnit implements Callable<ArrayList<PeakCurve>> {
 
     PeakCurve curve;
     boolean export;
-    public ArrayList<PeakCurve> ResultCurves;
+
     InstrumentParameter parameter;
 
     public PeakCurveSmoothingUnit(PeakCurve curve, InstrumentParameter para) {
@@ -40,7 +41,8 @@ public class PeakCurveSmoothingUnit implements Runnable {
     }
 
     @Override
-    public void run() {
+    public ArrayList<PeakCurve> call() {
+        final ArrayList<PeakCurve> ResultCurves;
         //If we want to split multimodal peak curve by CWT
         if (parameter.DetectByCWT) {
             curve.DoBspline();
@@ -52,5 +54,16 @@ public class PeakCurveSmoothingUnit implements Runnable {
             ResultCurves=new ArrayList<>();
             ResultCurves.add(curve);
         }
+        /**
+         * the for loop below does the work of public void ClearRawPeaks() in MSUmpire.​PeptidePeakClusterDetection.​PDHandlerBase.
+         */
+        for (final PeakCurve peakCurve : ResultCurves) {
+            peakCurve.CalculateMzVar();
+            peakCurve.StartRT();
+            peakCurve.EndRT();
+            peakCurve.ReleaseRawPeak();
+        }
+        curve=null;
+        return ResultCurves;
     }
 }

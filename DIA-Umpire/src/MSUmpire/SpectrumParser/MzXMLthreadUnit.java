@@ -37,7 +37,6 @@ import org.xml.sax.SAXException;
  */
 public class MzXMLthreadUnit implements Runnable {
 
-    ReentrantReadWriteLock Lock = new ReentrantReadWriteLock();
     public ScanData scan;
     private String XMLtext;
     private InstrumentParameter parameter;
@@ -73,6 +72,7 @@ public class MzXMLthreadUnit implements Runnable {
         }
         
        scan.Preprocessing(parameter);
-        
+       XMLtext=null;
+       parameter=null;
     }
 }

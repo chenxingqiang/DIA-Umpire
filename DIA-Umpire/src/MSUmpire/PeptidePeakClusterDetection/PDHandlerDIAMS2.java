@@ -85,8 +85,7 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
         
         LCMSPeakBase.UnSortedPeakCurves = new ArrayList<>();
         FindAllMzTracePeakCurves(scanCollection);
-        PeakCurveSmoothing();
-        ClearRawPeaks();
+//        PeakCurveSmoothing_and_ClearRawPeaks();
         ReadPepIsoMS1PatternMap();
         PeakCurveCorrClustering(DIAWindowMz);
     }

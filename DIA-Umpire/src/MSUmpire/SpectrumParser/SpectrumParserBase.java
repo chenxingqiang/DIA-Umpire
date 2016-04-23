@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
+import org.eclipse.collections.impl.map.mutable.primitive.IntFloatHashMap;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
 
@@ -53,14 +54,16 @@ public abstract class SpectrumParserBase {
 
     public TreeMap<Integer, Integer> MsLevelList=null;
     protected TreeMap<Float, Integer> ElutionTimeToScanNoMap=null;
-    protected HashMap<Integer, Float> ScanToElutionTime=null;
+//    protected HashMap<Integer, Float> ScanToElutionTime=null;
+    protected IntFloatHashMap ScanToElutionTime=null;
     public int NoMS1Scans = 0;
     
     public SpectrumParserBase(String filename, InstrumentParameter parameter, SpectralDataType.DataType datatype, DIA_Setting dIA_Setting, int NoCPUs){
         this.filename = filename;
         this.ElutionTimeToScanNoMap = new TreeMap<>();
         //scanCollection.ElutionTimeToScanNoMap = new TreeMap<>();
-        this.ScanToElutionTime = new HashMap<>();
+//        this.ScanToElutionTime = new HashMap<>();
+        this.ScanToElutionTime = new IntFloatHashMap();
         this.MsLevelList = new TreeMap<>();
         this.dIA_Setting = dIA_Setting;
         this.parameter = parameter;
@@ -88,7 +91,8 @@ public abstract class SpectrumParserBase {
         return (ElutionTimeToScanNoMap.lastKey() - ElutionTimeToScanNoMap.firstKey()) / NoMS1Scans;
     }
 
-    public HashMap<Integer, Float> GetScanElutionTimeMap() {
+//    public HashMap<Integer, Float> GetScanElutionTimeMap() {
+    public IntFloatHashMap GetScanElutionTimeMap() {
         return ScanToElutionTime;
     }
     
@@ -181,7 +185,8 @@ public abstract class SpectrumParserBase {
             Logger.getRootLogger().debug("Reading ScanRT:" + FilenameUtils.removeExtension(filename) + ".ScanRTFS...");
             FileInputStream fileIn = new FileInputStream(FilenameUtils.removeExtension(filename) + ".ScanRTFS");
             FSTObjectInput in = new FSTObjectInput(fileIn);
-            ScanToElutionTime = (HashMap<Integer, Float>) in.readObject();
+//            ScanToElutionTime = (HashMap<Integer, Float>) in.readObject();
+            ScanToElutionTime = (IntFloatHashMap) in.readObject();
             in.close();
             fileIn.close();
         } catch (Exception ex) {

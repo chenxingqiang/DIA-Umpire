@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import net.sf.javaml.core.kdtree.KDTree;
 import net.sf.javaml.core.kdtree.KeySizeException;
 import org.apache.avalon.framework.ExceptionUtil;
@@ -39,7 +40,8 @@ import org.apache.log4j.Logger;
  * Isotope peak curve clustering based on peak profile correlation. The searching is using KD tree
  * @author Chih-Chiang Tsou <chihchiang.tsou@gmail.com>
  */
-public class PeakCurveClusteringCorrKDtree implements Runnable {
+//public class PeakCurveClusteringCorrKDtree implements Runnable {
+public class PeakCurveClusteringCorrKDtree implements Callable<ArrayList<PeakCluster>> {
 
     PeakCurve peakA;
     InstrumentParameter parameter;
@@ -65,7 +67,8 @@ public class PeakCurveClusteringCorrKDtree implements Runnable {
     }
 
     @Override
-    public void run() {
+//    public void run() {
+    public ArrayList<PeakCluster> call() {
 
         float lowrt = peakA.ApexRT - parameter.ApexDelta;
         float highrt = peakA.ApexRT + parameter.ApexDelta;
@@ -79,7 +82,7 @@ public class PeakCurveClusteringCorrKDtree implements Runnable {
             Logger.getRootLogger().error(ExceptionUtil.printStackTrace(ex));
         }
         if(found==null || found.length==0){
-            return;
+            return ResultClusters;
         }
         SortedCurveCollectionMZ PeakCurveListMZ=new SortedCurveCollectionMZ();
         for(Object peakCurve : found){
@@ -213,7 +216,7 @@ public class PeakCurveClusteringCorrKDtree implements Runnable {
                         for (int i = 1; i < peakCluster.IsoPeaksCurves.length; i++) {
                             PeakCurve peak = peakCluster.IsoPeaksCurves[i];
                             if (peak != null && peakCluster.Corrs[i - 1] > parameter.RemoveGroupedPeaksCorr && peakCluster.OverlapRT[i - 1] > parameter.RemoveGroupedPeaksRTOverlap) {
-                                peak.ChargeGrouped.add(charge);                      
+                                peak.ChargeGrouped.add((byte) charge);                      
                             }
                         }
                     }
@@ -222,6 +225,7 @@ public class PeakCurveClusteringCorrKDtree implements Runnable {
         }
 
         PeakCurveListMZ=null;
-        //System.out.print("....done\n");
+    //System.out.print("....done\n");
+    return ResultClusters;
     }
 }

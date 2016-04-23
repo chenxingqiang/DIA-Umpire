@@ -229,7 +229,9 @@ public class PeakCluster implements Serializable {
 
         NoRidges = 0;
         if (peakA.RegionRidge != null) {
-            for (Float ridge : peakA.RegionRidge) {
+//            for (Float ridge : peakA.RegionRidge) {
+            for (int i=0; i<peakA.RegionRidge.size(); ++i) {
+                final float ridge = peakA.RegionRidge.get(i);
                 if (ridge >= startRT && ridge <= endRT) {
                     NoRidges++;
                 }

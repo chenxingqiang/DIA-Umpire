@@ -28,10 +28,15 @@ import MSUmpire.BaseDataStructure.XYZData;
 import MSUmpire.LCMSPeakStructure.LCMSPeakBase;
 import MSUmpire.PeakDataStructure.PeakCluster;
 import MSUmpire.PeakDataStructure.PeakCurve;
+import ch.qos.logback.classic.util.ContextInitializer;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import net.sf.javaml.core.kdtree.KDTree;
 import net.sf.javaml.core.kdtree.KeySizeException;
@@ -119,8 +124,7 @@ public class PDHandlerBase {
         }
         Logger.getRootLogger().info("Inclusion mz values found: "+InclusionCheckInfo());        
         //Perform peak smoothing for each detected peak curve
-        PeakCurveSmoothing();      
-        ClearRawPeaks();
+//        PeakCurveSmoothing_and_ClearRawPeaks();
     }
     
     static private long unique_long_id(final int scandata, final XYData scanData){
@@ -137,7 +141,10 @@ public class PDHandlerBase {
         float preRT = 0f;
         
         //Loop for each scan in the ScanCollection
-        for (int idx = 0; idx < scanCollection.GetScanNoArray(MSlevel).size(); idx++) {
+        final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
+        final ForkJoinPool fjp=new ForkJoinPool(NoCPUs);
+        final int idx_end = scanCollection.GetScanNoArray(MSlevel).size();
+        for (int idx = 0; idx < idx_end; idx++) {
             int scanNO = scanCollection.GetScanNoArray(MSlevel).get(idx);
             ScanData scanData = scanCollection.GetScan(scanNO);
             
@@ -266,10 +273,12 @@ public class PDHandlerBase {
 
                     //First check if the peak curve is in targeted list
                     if (FoundInInclusionList(Peakcurve.TargetMz, Peakcurve.StartRT(), Peakcurve.EndRT())) {
-                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+//                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+                        ftemp.add(fjp.submit(new PeakCurveSmoothingUnit(Peakcurve, parameter)));
                     //Then check if the peak curve passes the criteria
                     } else if (Peakcurve.GetRawSNR() > LCMSPeakBase.SNR && Peakcurve.GetPeakList().size() >= parameter.MinPeakPerPeakCurve + 2) {
-                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+//                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+                        ftemp.add(fjp.submit(new PeakCurveSmoothingUnit(Peakcurve, parameter)));
                     } else {
                         Peakcurve = null;
                     }
@@ -279,8 +288,25 @@ public class PDHandlerBase {
             if (ReleaseScans) {
                 scanData.dispose();
             }
+            /** the if statement below does PeakCurevSmoothing and ClearRawPeaks()
+             */
+            final int step=1024/2;
+            if (ftemp.size() % step == 0 || idx + 1 == idx_end) {
+                final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view = 
+                        idx + 1 == idx_end?
+                        ftemp
+                        : ftemp.subList(0, Math.max(0, ftemp.size() - step));
+                for(final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
+                    try{LCMSPeakBase.UnSortedPeakCurves.addAll(f.get());}
+                    catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
+                }
+                ftemp_sublist_view.clear();
+                System.gc();
+            }
         }
-
+        System.out.println("includedHashSet.size():\t"+includedHashSet.size());
+//        try{Thread.sleep(3600_000);}
+//        catch(Exception ex){throw new RuntimeException(ex);}
         //System.out.print("PSM removed (PeakCurve generation):" + PSMRemoved );
 
         int i = 1;
@@ -342,38 +368,72 @@ public class PDHandlerBase {
         return false;     
     }
     
-    //Signal smoothing for each detected peak curve
-    protected void PeakCurveSmoothing() {
+//    Signal smoothing for each detected peak curve
+//    protected void PeakCurveSmoothing()
+    /** combine protected void PeakCurveSmoothing() and public void ClearRawPeaks()
+     * 
+     */
+    protected void PeakCurveSmoothing_and_ClearRawPeaks() {
         //System.out.print("Using multithreading now: " + NoCPUs + " processors");
         Logger.getRootLogger().info("Smoothing detected signals......");
-        
-        //Threading pool
-        ExecutorService executorPool = null;
-        executorPool = Executors.newFixedThreadPool(NoCPUs);
-        ArrayList<PeakCurveSmoothingUnit> ResultList = new ArrayList<>();
-        for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
-            PeakCurveSmoothingUnit unit = new PeakCurveSmoothingUnit(Peakcurve, parameter);
-            ResultList.add(unit);
 
-            executorPool.execute(unit);
+        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+        final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
+        final ArrayList<PeakCurve> restemp = new ArrayList<>();
+        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveSmoothing() BEGIN");
+        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
+        System.gc();
+//        final long free_init=Runtime.getRuntime().freeMemory();
+//        for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
+        for (int i=0; i<LCMSPeakBase.UnSortedPeakCurves.size(); ++i) {
+            final PeakCurve Peakcurve=LCMSPeakBase.UnSortedPeakCurves.get(i);
+            final PeakCurveSmoothingUnit unit = new PeakCurveSmoothingUnit(Peakcurve, parameter);
+            LCMSPeakBase.UnSortedPeakCurves.set(i,null);
+            ftemp.add(executorPool.submit(unit));
+            final int step=executorPool.getParallelism()*1024;
+            if ((i % step) == 0 || i+1==LCMSPeakBase.UnSortedPeakCurves.size()) {
+                final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view =
+                        i+1==LCMSPeakBase.UnSortedPeakCurves.size()?
+                        ftemp:
+                        ftemp.subList(0, Math.max(0,ftemp.size() -step));
+                for (final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
+                    final List<PeakCurve> lp;
+                    try {restemp.addAll(f.get());}
+                    catch (InterruptedException | ExecutionException ex) {throw new RuntimeException(ex);}
+                }
+                ftemp_sublist_view.clear();
+//                if((free_init-Runtime.getRuntime().freeMemory())/Runtime.getRuntime().maxMemory()>0.09)
+//                    System.gc();
+            }
         }
+        LCMSPeakBase.UnSortedPeakCurves.clear();
+        LCMSPeakBase.UnSortedPeakCurves=restemp;
+        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveSmoothing() END");
+        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory()+"\t"+Runtime.getRuntime().maxMemory());
         executorPool.shutdown();
         try {
             executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Logger.getRootLogger().info("interrupted..");
         }
-        executorPool = null;
-        
-        LCMSPeakBase.UnSortedPeakCurves.clear();
-        for (PeakCurveSmoothingUnit result : ResultList) {
-            LCMSPeakBase.UnSortedPeakCurves.addAll(result.ResultCurves);
-        }
-        
+
         int i = 1;
         for (PeakCurve peakCurve : LCMSPeakBase.UnSortedPeakCurves) {            
             peakCurve.Index = i++;
         }        
+    }
+
+    protected void PeakCurveSmoothing_and_ClearRawPeaks2(final PeakCurve Peakcurve) {
+        //System.out.print("Using multithreading now: " + NoCPUs + " processors");
+        Logger.getRootLogger().info("Smoothing detected signals......");
+
+        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+        final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
+        final ArrayList<PeakCurve> restemp = new ArrayList<>();
+
+            final PeakCurveSmoothingUnit unit = new PeakCurveSmoothingUnit(Peakcurve, parameter);
+            ftemp.add(executorPool.submit(unit));
+            final int step=executorPool.getParallelism()*1024;
     }
 
     //Load pre-built peptide isotope pattern table
@@ -408,38 +468,51 @@ public class PDHandlerBase {
         LCMSPeakBase.PeakClusters = new ArrayList<>();
         
         //Thread pool
-        ExecutorService executorPool = null;
-        executorPool = Executors.newFixedThreadPool(NoCPUs);        
-        ArrayList<PeakCurveClusteringCorrKDtree> ResultList = new ArrayList<>();
-
+//        ExecutorService executorPool = null;
+//        executorPool = Executors.newFixedThreadPool(NoCPUs);
+        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+//        ArrayList<PeakCurveClusteringCorrKDtree> ResultList = new ArrayList<>();
+        final ArrayList<ForkJoinTask<ArrayList<PeakCluster>>> futures = new ArrayList<>();
+        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveCorrClustering()");
+        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
         //For each peak curve
         for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
             if (Peakcurve.TargetMz >= mzRange.getX() && Peakcurve.TargetMz <= mzRange.getY()) {
                 //Create a thread unit for doing isotope clustering given a peak curve as the monoisotope peak
                 PeakCurveClusteringCorrKDtree unit = new PeakCurveClusteringCorrKDtree(Peakcurve, LCMSPeakBase.GetPeakCurveSearchTree(), parameter, IsotopePatternMap, LCMSPeakBase.StartCharge, LCMSPeakBase.EndCharge, LCMSPeakBase.MaxNoPeakCluster, LCMSPeakBase.MinNoPeakCluster);
-                ResultList.add(unit);
-                executorPool.execute(unit);                
+//                ResultList.add(unit);
+                futures.add(executorPool.submit(unit));
             }
         }
-
+        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
         executorPool.shutdown();
+        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveCorrClustering() END");
+        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
         try {
             executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Logger.getRootLogger().info("interrupted..");
         }
-        for (PeakCurveClusteringCorrKDtree unit : ResultList) {
-            for (PeakCluster peakCluster : unit.ResultClusters) {
+        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory());
+//        for (PeakCurveClusteringCorrKDtree unit : ResultList) {
+        for (final ForkJoinTask<ArrayList<PeakCluster>> fut : futures) {
+            final ArrayList<PeakCluster> ResultClusters;
+            try {
+                ResultClusters = fut.get();
+            } catch (InterruptedException|ExecutionException ex) {
+                throw new RuntimeException(ex);
+            }
+//            for (PeakCluster peakCluster : unit.ResultClusters) {
+            for (PeakCluster peakCluster : ResultClusters) {
                 //Check if the monoistope peak of cluster has been grouped in other isotope cluster, if yes, remove the peak cluster
-                if (!parameter.RemoveGroupedPeaks || !peakCluster.MonoIsotopePeak.ChargeGrouped.contains(peakCluster.Charge)) {
+                if (!parameter.RemoveGroupedPeaks || !peakCluster.MonoIsotopePeak.ChargeGrouped.contains((byte) peakCluster.Charge)) {
                     peakCluster.Index = LCMSPeakBase.PeakClusters.size() + 1;
                     peakCluster.GetConflictCorr();
                     LCMSPeakBase.PeakClusters.add(peakCluster);
                 }               
             }
         }
-        ResultList.clear();
-        ResultList = null;
+        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory());
         System.gc();
         Logger.getRootLogger().info("No of ion clusters:" + LCMSPeakBase.PeakClusters.size() + " (Memory usage:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB)");
     }
