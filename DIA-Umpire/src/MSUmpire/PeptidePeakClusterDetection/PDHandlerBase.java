@@ -28,12 +28,9 @@ import MSUmpire.BaseDataStructure.XYZData;
 import MSUmpire.LCMSPeakStructure.LCMSPeakBase;
 import MSUmpire.PeakDataStructure.PeakCluster;
 import MSUmpire.PeakDataStructure.PeakCurve;
-import ch.qos.logback.classic.util.ContextInitializer;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
@@ -42,7 +39,7 @@ import net.sf.javaml.core.kdtree.KDTree;
 import net.sf.javaml.core.kdtree.KeySizeException;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
-import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+import org.eclipse.collections.impl.list.mutable.primitive.BooleanArrayList;
 
 /**
  * Peak detection processing parent class
@@ -127,14 +124,16 @@ public class PDHandlerBase {
 //        PeakCurveSmoothing_and_ClearRawPeaks();
     }
     
-    static private long unique_long_id(final int scandata, final XYData scanData){
-        return ((long)scandata << 32L) | Float.floatToRawIntBits(scanData.getX());
+    static private int int_id(final int[] idx_arr,final int scannum_idx, final int peakindex){
+        final int ret = idx_arr[scannum_idx]+peakindex;
+        if(ret>=idx_arr[scannum_idx+1])
+            throw new IndexOutOfBoundsException();
+        return ret;
     }
 
     //Detect all m/z trace / peak curves
     protected void FindAllMzTracePeakCurves(ScanCollection scanCollection) throws IOException {
 //        final HashSet<String> IncludedHashMap = new HashSet<>();
-        final LongHashSet includedHashSet = new LongHashSet();
 
         Logger.getRootLogger().info("Processing all scans to detect possible m/z peak curves....");
         
@@ -144,6 +143,20 @@ public class PDHandlerBase {
         final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
         final ForkJoinPool fjp=new ForkJoinPool(NoCPUs);
         final int idx_end = scanCollection.GetScanNoArray(MSlevel).size();
+
+
+        final int[] ia=new int[idx_end+1];
+        ia[0]=0;
+        for (int idx = 0; idx < idx_end; idx++) {
+            final int scanNO = scanCollection.GetScanNoArray(MSlevel).get(idx);
+            final ScanData sd=scanCollection.GetScan(scanNO);
+            ia[idx+1]=sd.Data.size()+ia[idx];
+        }
+        
+        final BooleanArrayList included = new BooleanArrayList(ia[ia.length-1]);
+        while(included.size()<ia[ia.length-1])
+            included.add(false);
+
         for (int idx = 0; idx < idx_end; idx++) {
             int scanNO = scanCollection.GetScanNoArray(MSlevel).get(idx);
             ScanData scanData = scanCollection.GetScan(scanNO);
@@ -167,12 +180,14 @@ public class PDHandlerBase {
                 }
                 
                 //Check if the current peak has been included in previously developed peak curves
-                if (includedHashSet.add(unique_long_id(scanNO, peak))) {//The peak hasn't been included, add it and execute the following
 //                if (!IncludedHashMap.contains(scanNO + "_" + peak.getX())) {//The peak hasn't been included
+                final int id_scanNO_peak=int_id(ia, idx, i);
+                if (!included.get(id_scanNO_peak)) {//The peak hasn't been included
                     //The current peak will be the starting peak of a new peak curve
                     //Add it to the hash table
 
 //                    IncludedHashMap.add(scanNO + "_" + peak.getX());
+                    included.set(id_scanNO_peak, true);
 
                     float startmz = peak.getX();
                     float startint = peak.getY();
@@ -180,11 +195,11 @@ public class PDHandlerBase {
                    //Find the maximum peak within PPM window as the starting peak
                     for (int j = i + 1; j < scanData.PointCount(); j++) {
                         XYData currentpeak = scanData.Data.get(j);
-                        final long id_scanNo_currentpeak=unique_long_id(scanNO, currentpeak);
-                        if (!includedHashSet.contains(id_scanNo_currentpeak)) {
+                        final int id_scanNO_currentpeak = int_id(ia,idx,j);
+                        if (!included.get(id_scanNO_currentpeak)) {
 //                        if (!IncludedHashMap.contains(scanNO + "_" + currentpeak.getX())) {
                             if (InstrumentParameter.CalcPPM(currentpeak.getX(), startmz) <= PPM) {
-                                includedHashSet.add(id_scanNo_currentpeak);
+                                included.set(id_scanNO_currentpeak,true);
 //                                IncludedHashMap.add(scanNO + "_" + currentpeak.getX());
 
                                 if (currentpeak.getY() >= startint) {
@@ -238,8 +253,8 @@ public class PDHandlerBase {
                                 continue;
                             }
                             //Check if the peak has been included or not
-                            final long id_scanNO2_currentpeak=unique_long_id(scanNO2, currentpeak);
-                            if (!includedHashSet.contains(id_scanNO2_currentpeak)) {
+                            final int int_id_scanNO2_currentpeak=int_id(ia,idx2,pkidx);
+                            if (!included.get(int_id_scanNO2_currentpeak)) {
 //                            if (!IncludedHashMap.contains(scanNO2 + "_" + currentpeak.getX())) {
                                 if (InstrumentParameter.CalcPPM(currentpeak.getX(), Peakcurve.TargetMz) > PPM) {
                                     if (currentpeak.getX() > Peakcurve.TargetMz) {
@@ -247,7 +262,7 @@ public class PDHandlerBase {
                                     }
                                 } else {
                                     //////////The peak is in the ppm window, select the highest peak
-                                    includedHashSet.add(id_scanNO2_currentpeak);
+                                    included.set(int_id_scanNO2_currentpeak, true);
 //                                    IncludedHashMap.add(scanNO2 + "_" + currentpeak.getX());
                                     if (currentint < currentpeak.getY()) {
                                         currentmz = currentpeak.getX();
@@ -288,23 +303,23 @@ public class PDHandlerBase {
             if (ReleaseScans) {
                 scanData.dispose();
             }
-            /** the if statement below does PeakCurevSmoothing and ClearRawPeaks()
+            /** the if statement below does PeakCurveSmoothing() and ClearRawPeaks()
              */
             final int step=1024/2;
-            if (ftemp.size() % step == 0 || idx + 1 == idx_end) {
+            if (!ftemp.isEmpty() && 
+                    (ftemp.size() % step == 0 || idx + 1 == idx_end)) {
                 final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view = 
                         idx + 1 == idx_end?
                         ftemp
-                        : ftemp.subList(0, Math.max(0, ftemp.size() - step));
+                        : ftemp.subList(0, ftemp.size()-step);
                 for(final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
                     try{LCMSPeakBase.UnSortedPeakCurves.addAll(f.get());}
                     catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
                 }
                 ftemp_sublist_view.clear();
-                System.gc();
             }
         }
-        System.out.println("includedHashSet.size():\t"+includedHashSet.size());
+//        System.out.println("includedHashSet.size():\t"+includedHashSet.size());
 //        try{Thread.sleep(3600_000);}
 //        catch(Exception ex){throw new RuntimeException(ex);}
         //System.out.print("PSM removed (PeakCurve generation):" + PSMRemoved );
