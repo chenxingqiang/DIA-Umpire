@@ -135,8 +135,9 @@ public class PDHandlerBase {
     protected void FindAllMzTracePeakCurves(ScanCollection scanCollection) throws IOException {
 //        final HashSet<String> IncludedHashMap = new HashSet<>();
 
-        Logger.getRootLogger().info("Processing all scans to detect possible m/z peak curves....");
-        
+//        Logger.getRootLogger().info("Processing all scans to detect possible m/z peak curves....");
+        Logger.getRootLogger().info("Processing all scans to detect possible m/z peak curves and");
+        Logger.getRootLogger().info("Smoothing detected signals......");
         float preRT = 0f;
         
         //Loop for each scan in the ScanCollection
@@ -305,13 +306,12 @@ public class PDHandlerBase {
             }
             /** the if statement below does PeakCurveSmoothing() and ClearRawPeaks()
              */
-            final int step=1024/2;
-            if (!ftemp.isEmpty() && 
-                    (ftemp.size() % step == 0 || idx + 1 == idx_end)) {
+            final int step=1<<9;
+            if (ftemp.size() == step || idx + 1 == idx_end) {
                 final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view = 
                         idx + 1 == idx_end?
                         ftemp
-                        : ftemp.subList(0, ftemp.size()-step);
+                        : ftemp.subList(0, step/2);
                 for(final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
                     try{LCMSPeakBase.UnSortedPeakCurves.addAll(f.get());}
                     catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
@@ -382,74 +382,7 @@ public class PDHandlerBase {
         }
         return false;     
     }
-    
-//    Signal smoothing for each detected peak curve
-//    protected void PeakCurveSmoothing()
-    /** combine protected void PeakCurveSmoothing() and public void ClearRawPeaks()
-     * 
-     */
-    protected void PeakCurveSmoothing_and_ClearRawPeaks() {
-        //System.out.print("Using multithreading now: " + NoCPUs + " processors");
-        Logger.getRootLogger().info("Smoothing detected signals......");
 
-        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
-        final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
-        final ArrayList<PeakCurve> restemp = new ArrayList<>();
-        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveSmoothing() BEGIN");
-        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
-        System.gc();
-//        final long free_init=Runtime.getRuntime().freeMemory();
-//        for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
-        for (int i=0; i<LCMSPeakBase.UnSortedPeakCurves.size(); ++i) {
-            final PeakCurve Peakcurve=LCMSPeakBase.UnSortedPeakCurves.get(i);
-            final PeakCurveSmoothingUnit unit = new PeakCurveSmoothingUnit(Peakcurve, parameter);
-            LCMSPeakBase.UnSortedPeakCurves.set(i,null);
-            ftemp.add(executorPool.submit(unit));
-            final int step=executorPool.getParallelism()*1024;
-            if ((i % step) == 0 || i+1==LCMSPeakBase.UnSortedPeakCurves.size()) {
-                final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view =
-                        i+1==LCMSPeakBase.UnSortedPeakCurves.size()?
-                        ftemp:
-                        ftemp.subList(0, Math.max(0,ftemp.size() -step));
-                for (final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
-                    final List<PeakCurve> lp;
-                    try {restemp.addAll(f.get());}
-                    catch (InterruptedException | ExecutionException ex) {throw new RuntimeException(ex);}
-                }
-                ftemp_sublist_view.clear();
-//                if((free_init-Runtime.getRuntime().freeMemory())/Runtime.getRuntime().maxMemory()>0.09)
-//                    System.gc();
-            }
-        }
-        LCMSPeakBase.UnSortedPeakCurves.clear();
-        LCMSPeakBase.UnSortedPeakCurves=restemp;
-        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveSmoothing() END");
-        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory()+"\t"+Runtime.getRuntime().maxMemory());
-        executorPool.shutdown();
-        try {
-            executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            Logger.getRootLogger().info("interrupted..");
-        }
-
-        int i = 1;
-        for (PeakCurve peakCurve : LCMSPeakBase.UnSortedPeakCurves) {            
-            peakCurve.Index = i++;
-        }        
-    }
-
-    protected void PeakCurveSmoothing_and_ClearRawPeaks2(final PeakCurve Peakcurve) {
-        //System.out.print("Using multithreading now: " + NoCPUs + " processors");
-        Logger.getRootLogger().info("Smoothing detected signals......");
-
-        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
-        final ArrayList<ForkJoinTask<ArrayList<PeakCurve>>> ftemp = new ArrayList<>();
-        final ArrayList<PeakCurve> restemp = new ArrayList<>();
-
-            final PeakCurveSmoothingUnit unit = new PeakCurveSmoothingUnit(Peakcurve, parameter);
-            ftemp.add(executorPool.submit(unit));
-            final int step=executorPool.getParallelism()*1024;
-    }
 
     //Load pre-built peptide isotope pattern table
     protected void ReadPepIsoMS1PatternMap() throws FileNotFoundException, IOException {

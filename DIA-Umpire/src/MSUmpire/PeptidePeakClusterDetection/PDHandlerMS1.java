@@ -42,6 +42,7 @@ public class PDHandlerMS1 extends PDHandlerBase {
     //Detect peak curve and isotope peak cluster given a list of ScanCollection
     public void DetectPeakClusters(ArrayList<ScanCollection> scanCollections) throws InterruptedException, ExecutionException, IOException {        
         FindAllMzTracePeakCurvesForScanCollections(scanCollections);
+        scanCollections.clear();//not needed after this line, so clear it
         PeakCurveCorrClustering(new XYData(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY));
     }
 }

@@ -116,5 +116,6 @@ public class CorrCalcCluster2CurveUnit implements Runnable {
         if(highCorrCnt<parameter.MinHighCorrCnt){
             GroupedFragmentList.clear();
         }
+        this.PeakCurveSortedListApexRT=null;
     }
 }

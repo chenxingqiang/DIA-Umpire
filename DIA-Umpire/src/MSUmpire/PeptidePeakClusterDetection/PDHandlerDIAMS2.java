@@ -30,8 +30,12 @@ import MSUmpire.PeakDataStructure.PrecursorFragmentPairEdge;
 import java.io.*;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
@@ -99,19 +103,37 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
     private void PrecursorFragmentPairBuildingForUnfragmentedIon() throws SQLException, IOException {
         //System.out.print("Using multithreading now: " + NoCPUs + " processors\n");
         Logger.getRootLogger().info("Building precursor-fragment pairs for unfragmented ions....");
-        ExecutorService executorPool = null;
-        ArrayList<CorrCalcCluster2CurveUnit> UnfragmentedIonPairList = new ArrayList<>();
-        executorPool = Executors.newFixedThreadPool(NoCPUs);
+        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+        final ArrayList<Future<CorrCalcCluster2CurveUnit>> ftemp = new ArrayList<>();
+//        ArrayList<CorrCalcCluster2CurveUnit> UnfragmentedIonPairList = new ArrayList<>();
+        final LCMSPeakDIAMS2 LCMSPeakBase__ = (LCMSPeakDIAMS2) LCMSPeakBase;
+        LCMSPeakBase__.UnFragIonClu2Cur=new HashMap<>();
+        int idx=0;
+        final int idx_end=LCMSPeakBase.PeakClusters.size();
         for (PeakCluster peakCluster : LCMSPeakBase.PeakClusters) {
             if (peakCluster.Charge >= parameter.StartCharge && peakCluster.Charge <= parameter.EndCharge && peakCluster.TargetMz() >= DIAWindowMz.getX() && peakCluster.TargetMz() <= DIAWindowMz.getY()) {
                 CorrCalcCluster2CurveUnit unit = new CorrCalcCluster2CurveUnit(peakCluster, LCMSPeakBase.GetPeakCurveListRT(), parameter);
-                UnfragmentedIonPairList.add(unit);
+//                UnfragmentedIonPairList.add(unit);
+                ftemp.add(executorPool.submit(unit,unit));
             }
+            final int step=executorPool.getParallelism()*256;
+            if (ftemp.size() == step || idx + 1 == idx_end) {
+                final List<Future<CorrCalcCluster2CurveUnit>> ftemp_sublist_view =
+                        idx + 1 == idx_end?
+                        ftemp:
+                        ftemp.subList(0, step/2);
+                for(final Future<CorrCalcCluster2CurveUnit> f : ftemp_sublist_view){
+                    final CorrCalcCluster2CurveUnit unit;
+                    try{unit=f.get();}
+                    catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
+                    if (!unit.GroupedFragmentList.isEmpty())
+                        LCMSPeakBase__.UnFragIonClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
+                }
+                ftemp_sublist_view.clear();
+            }
+            ++idx;
         }
 
-        for (CorrCalcCluster2CurveUnit unit : UnfragmentedIonPairList) {
-            executorPool.execute(unit);
-        }
         executorPool.shutdown();
 
         try {
@@ -120,21 +142,16 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
             Logger.getRootLogger().info("interrupted..");
         }
 
-        ((LCMSPeakDIAMS2) LCMSPeakBase).UnFragIonClu2Cur = new HashMap<>();
-        for (CorrCalcCluster2CurveUnit unit : UnfragmentedIonPairList) {
-            if (!unit.GroupedFragmentList.isEmpty()) {
-                ((LCMSPeakDIAMS2) LCMSPeakBase).UnFragIonClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
-            }
-        }
-        executorPool = null;
+//        LCMSPeakBase__.UnFragIonClu2Cur = new HashMap<>();
+//        for (CorrCalcCluster2CurveUnit unit : UnfragmentedIonPairList) {
+//            if (!unit.GroupedFragmentList.isEmpty()) {
+//                LCMSPeakBase__.UnFragIonClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
+//            }
+//        }
         
         ((LCMSPeakDIAMS2) LCMSPeakBase).BuildFragmentUnfragranking();
         ((LCMSPeakDIAMS2) LCMSPeakBase).FilterByCriteriaUnfrag();
         ((LCMSPeakDIAMS2) LCMSPeakBase).ExportUnfragmentedClusterCurve();
-        
-        UnfragmentedIonPairList.clear();
-        UnfragmentedIonPairList = null;
-        executorPool = null;
 
         //System.out.print("Finished multithreading\n");
     }
@@ -142,19 +159,37 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
     private void PrecursorFragmentPairBuildingForMS1() throws SQLException, IOException {
         //System.out.print("Using multithreading now: " + NoCPUs + " processors\n");
         Logger.getRootLogger().info("Building precursor-fragment pairs for MS1 features....");
-        ExecutorService executorPool = null;
-        ArrayList<CorrCalcCluster2CurveUnit> PrecursorPairList = new ArrayList<>();
-        executorPool = Executors.newFixedThreadPool(NoCPUs);
+        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+//        ArrayList<CorrCalcCluster2CurveUnit> PrecursorPairList = new ArrayList<>();
+        final ArrayList<Future<CorrCalcCluster2CurveUnit>> ftemp = new ArrayList<>();
+        final LCMSPeakDIAMS2 LCMSPeakBase__ = (LCMSPeakDIAMS2) LCMSPeakBase;
+        LCMSPeakBase__.FragmentsClu2Cur = new HashMap<>();
+        int idx=0;
+        final int idx_end=ms1lcms.PeakClusters.size();
         for (PeakCluster peakCluster : ms1lcms.PeakClusters) {
             if (peakCluster.GetMaxMz()>= DIAWindowMz.getX() && peakCluster.TargetMz() <= DIAWindowMz.getY()) {
                 CorrCalcCluster2CurveUnit unit = new CorrCalcCluster2CurveUnit(peakCluster, LCMSPeakBase.GetPeakCurveListRT(), parameter);
-                PrecursorPairList.add(unit);
+//                PrecursorPairList.add(unit);
+                ftemp.add(executorPool.submit(unit,unit));
             }
+            final int step=executorPool.getParallelism()*256;
+            if (ftemp.size() == step || idx + 1 == idx_end) {
+                final List<Future<CorrCalcCluster2CurveUnit>> ftemp_sublist_view = 
+                        idx + 1 == idx_end?
+                        ftemp:
+                        ftemp.subList(0, step/2);
+                for(final Future<CorrCalcCluster2CurveUnit> f : ftemp_sublist_view){
+                    final CorrCalcCluster2CurveUnit unit;
+                    try{unit=f.get();}
+                    catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
+                    if (!unit.GroupedFragmentList.isEmpty())
+                        LCMSPeakBase__.FragmentsClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
+                }
+                ftemp_sublist_view.clear();
+            }
+            ++idx;
         }
 
-        for (CorrCalcCluster2CurveUnit unit : PrecursorPairList) {
-            executorPool.execute(unit);
-        }
         executorPool.shutdown();
         try {
             executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
@@ -162,18 +197,15 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
             Logger.getRootLogger().info("interrupted..");
         }
 
-        ((LCMSPeakDIAMS2) LCMSPeakBase).FragmentsClu2Cur = new HashMap<>();
-        for (CorrCalcCluster2CurveUnit unit : PrecursorPairList) {
-            if (!unit.GroupedFragmentList.isEmpty()) {
-                ((LCMSPeakDIAMS2) LCMSPeakBase).FragmentsClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
-            }
-        }
+//        ((LCMSPeakDIAMS2) LCMSPeakBase).FragmentsClu2Cur = new HashMap<>();
+//        for (CorrCalcCluster2CurveUnit unit : PrecursorPairList) {
+//            if (!unit.GroupedFragmentList.isEmpty()) {
+//                ((LCMSPeakDIAMS2) LCMSPeakBase).FragmentsClu2Cur.put(unit.MS1PeakCluster.Index, unit.GroupedFragmentList);
+//            }
+//        }
         ((LCMSPeakDIAMS2) LCMSPeakBase).BuildFragmentMS1ranking();
         ((LCMSPeakDIAMS2) LCMSPeakBase).FilterByCriteria();
         ((LCMSPeakDIAMS2) LCMSPeakBase).ExportCluster2CurveCorr();
-        PrecursorPairList.clear();
-        PrecursorPairList = null;
-        executorPool = null;
 
         //System.out.print("Finished multithreading\n");
     }
