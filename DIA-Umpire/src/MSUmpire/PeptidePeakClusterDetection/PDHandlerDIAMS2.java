@@ -133,7 +133,7 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
             }
             ++idx;
         }
-
+        assert ftemp.isEmpty();
         executorPool.shutdown();
 
         try {
@@ -189,7 +189,7 @@ public class PDHandlerDIAMS2 extends PDHandlerBase {
             }
             ++idx;
         }
-
+        assert ftemp.isEmpty();
         executorPool.shutdown();
         try {
             executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);

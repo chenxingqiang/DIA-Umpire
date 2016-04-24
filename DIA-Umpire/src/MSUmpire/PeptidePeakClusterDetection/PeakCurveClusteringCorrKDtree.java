@@ -224,8 +224,7 @@ public class PeakCurveClusteringCorrKDtree implements Callable<ArrayList<PeakClu
             }
         }
 
-        PeakCurveListMZ=null;
     //System.out.print("....done\n");
-    return ResultClusters;
+        return ResultClusters;
     }
 }

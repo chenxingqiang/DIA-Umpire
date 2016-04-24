@@ -126,8 +126,9 @@ public class PDHandlerBase {
     
     static private int int_id(final int[] idx_arr,final int scannum_idx, final int peakindex){
         final int ret = idx_arr[scannum_idx]+peakindex;
-        if(ret>=idx_arr[scannum_idx+1])
-            throw new IndexOutOfBoundsException();
+        assert ret<idx_arr[scannum_idx+1]:"indexing error";
+//        if(ret>=idx_arr[scannum_idx+1])
+//            throw new IndexOutOfBoundsException();
         return ret;
     }
 
@@ -319,9 +320,7 @@ public class PDHandlerBase {
                 ftemp_sublist_view.clear();
             }
         }
-//        System.out.println("includedHashSet.size():\t"+includedHashSet.size());
-//        try{Thread.sleep(3600_000);}
-//        catch(Exception ex){throw new RuntimeException(ex);}
+        assert ftemp.isEmpty();
         //System.out.print("PSM removed (PeakCurve generation):" + PSMRemoved );
 
         int i = 1;
@@ -410,46 +409,56 @@ public class PDHandlerBase {
     }
     
     //Group peak curves based on peak profile correlation of isotope peaks
-    protected void PeakCurveCorrClustering(XYData mzRange) throws IOException {
+    protected void PeakCurveCorrClustering(XYData mzRange) throws IOException{
         Logger.getRootLogger().info("Grouping isotopic peak curves........");
 
         LCMSPeakBase.PeakClusters = new ArrayList<>();
         
         //Thread pool
-//        ExecutorService executorPool = null;
-//        executorPool = Executors.newFixedThreadPool(NoCPUs);
         final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
 //        ArrayList<PeakCurveClusteringCorrKDtree> ResultList = new ArrayList<>();
-        final ArrayList<ForkJoinTask<ArrayList<PeakCluster>>> futures = new ArrayList<>();
-        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveCorrClustering()");
-        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
+        final ArrayList<ForkJoinTask<ArrayList<PeakCluster>>> ftemp = new ArrayList<>();
+        final int end_idx=LCMSPeakBase.UnSortedPeakCurves.size();
+        final ArrayList<ArrayList<PeakCluster>> resultClustersList=new ArrayList<>();
         //For each peak curve
-        for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
+//        for (PeakCurve Peakcurve : LCMSPeakBase.UnSortedPeakCurves) {
+        for (int i=0;i<end_idx;++i) {
+            final PeakCurve Peakcurve = LCMSPeakBase.UnSortedPeakCurves.get(i);
             if (Peakcurve.TargetMz >= mzRange.getX() && Peakcurve.TargetMz <= mzRange.getY()) {
                 //Create a thread unit for doing isotope clustering given a peak curve as the monoisotope peak
                 PeakCurveClusteringCorrKDtree unit = new PeakCurveClusteringCorrKDtree(Peakcurve, LCMSPeakBase.GetPeakCurveSearchTree(), parameter, IsotopePatternMap, LCMSPeakBase.StartCharge, LCMSPeakBase.EndCharge, LCMSPeakBase.MaxNoPeakCluster, LCMSPeakBase.MinNoPeakCluster);
 //                ResultList.add(unit);
-                futures.add(executorPool.submit(unit));
+//                futures.add(executorPool.submit(unit));
+                ftemp.add(executorPool.submit(unit));
+            }
+            final int step=executorPool.getParallelism()*256;
+            if(ftemp.size()==step || i+1==end_idx){
+                final List<ForkJoinTask<ArrayList<PeakCluster>>> ftemp_sublist_view=
+                        i+1==end_idx?
+                        ftemp:
+                        ftemp.subList(0, step/2);
+                for (final ForkJoinTask<ArrayList<PeakCluster>> fut : ftemp_sublist_view)
+                    try {if(!fut.get().isEmpty())resultClustersList.add(fut.get());}
+                    catch (InterruptedException | ExecutionException ex) {throw new RuntimeException(ex);}
+                ftemp_sublist_view.clear();
             }
         }
-        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
+
+        assert ftemp.isEmpty():"temp storage for futures should be empty by end of loop";
         executorPool.shutdown();
-        System.out.println("MSUmpire.PeptidePeakClusterDetection.PDHandlerBase.PeakCurveCorrClustering() END");
-        System.out.println(Runtime.getRuntime().totalMemory() + "\t" + Runtime.getRuntime().freeMemory() + "\t" + Runtime.getRuntime().maxMemory());
+
         try {
             executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Logger.getRootLogger().info("interrupted..");
         }
-        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory());
+
 //        for (PeakCurveClusteringCorrKDtree unit : ResultList) {
-        for (final ForkJoinTask<ArrayList<PeakCluster>> fut : futures) {
-            final ArrayList<PeakCluster> ResultClusters;
-            try {
-                ResultClusters = fut.get();
-            } catch (InterruptedException|ExecutionException ex) {
-                throw new RuntimeException(ex);
-            }
+//        for (final ForkJoinTask<ArrayList<PeakCluster>> fut : futures) {
+        for (final ArrayList<PeakCluster> ResultClusters : resultClustersList) {
+//            final ArrayList<PeakCluster> ResultClusters;
+//            try {ResultClusters = fut.get();}
+//            catch (InterruptedException|ExecutionException ex) {throw new RuntimeException(ex);}
 //            for (PeakCluster peakCluster : unit.ResultClusters) {
             for (PeakCluster peakCluster : ResultClusters) {
                 //Check if the monoistope peak of cluster has been grouped in other isotope cluster, if yes, remove the peak cluster
@@ -459,8 +468,8 @@ public class PDHandlerBase {
                     LCMSPeakBase.PeakClusters.add(peakCluster);
                 }               
             }
+            ResultClusters.clear();
         }
-        System.out.println(Runtime.getRuntime().totalMemory()+"\t"+Runtime.getRuntime().freeMemory());
         System.gc();
         Logger.getRootLogger().info("No of ion clusters:" + LCMSPeakBase.PeakClusters.size() + " (Memory usage:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB)");
     }
