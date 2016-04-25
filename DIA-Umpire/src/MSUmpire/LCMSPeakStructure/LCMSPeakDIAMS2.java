@@ -53,6 +53,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
+import org.eclipse.collections.impl.list.mutable.primitive.FloatArrayList;
+import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
 
@@ -334,8 +336,10 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
         return (ReadPrecursorFragmentClu2Cur() & ReadPeakCluster());
     }
 
-    HashMap<Integer, ArrayList<Float>> FragmentMS1Ranking;
-    HashMap<Integer, ArrayList<Float>> FragmentUnfragRanking;
+//    HashMap<Integer, ArrayList<Float>> FragmentMS1Ranking;
+//    HashMap<Integer, ArrayList<Float>> FragmentUnfragRanking;
+    IntObjectHashMap<FloatArrayList> FragmentMS1Ranking;
+    IntObjectHashMap<FloatArrayList> FragmentUnfragRanking;
     
     public void FilterByCriteriaUnfrag() {
         
@@ -375,15 +379,18 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
         HashMap<Integer, ArrayList<PrecursorFragmentPairEdge>> templist=new HashMap<>();        
         for (int clusterindex : FragmentsClu2Cur.keySet()) {
             ArrayList<PrecursorFragmentPairEdge> newlist = new ArrayList<>();
-            ArrayList<Float> CorrArrayList = new ArrayList<>();
+//            ArrayList<Float> CorrArrayList = new ArrayList<>();
+            final FloatArrayList CorrArrayList = new FloatArrayList();
             HashMap<PrecursorFragmentPairEdge, Float> ScoreList = new HashMap<>();
             for (PrecursorFragmentPairEdge fragmentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
                 float score = fragmentClusterUnit.Correlation * fragmentClusterUnit.Correlation * (float) Math.log(fragmentClusterUnit.Intensity);
                 ScoreList.put(fragmentClusterUnit, score);
                 CorrArrayList.add(score);
             }
-            Collections.sort(CorrArrayList);
-            Collections.reverse(CorrArrayList);
+//            Collections.sort(CorrArrayList);
+//            Collections.reverse(CorrArrayList);
+            CorrArrayList.trimToSize();
+            CorrArrayList.sortThis().reverseThis();
 
             for (PrecursorFragmentPairEdge fragmentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
                 int CorrRank = 0;
@@ -404,23 +411,30 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
     
     //Calculate precursor-fragment MS1 ranking (described in DIA-Umpire paper)
     public void BuildFragmentMS1ranking() {
-        FragmentMS1Ranking = new HashMap<>();
+//        FragmentMS1Ranking = new HashMap<>();
+        FragmentMS1Ranking = new IntObjectHashMap<>();
         for (int clusterindex : FragmentsClu2Cur.keySet()) {
             for (PrecursorFragmentPairEdge framentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
                 if (!FragmentMS1Ranking.containsKey(framentClusterUnit.PeakCurveIndexB)) {
-                    ArrayList<Float> scorelist = new ArrayList<>();
-                    FragmentMS1Ranking.put(framentClusterUnit.PeakCurveIndexB, scorelist);
+//                    ArrayList<Float> scorelist = new ArrayList<>();
+                    FragmentMS1Ranking.put(framentClusterUnit.PeakCurveIndexB, new FloatArrayList());
                 }
                 FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB).add(framentClusterUnit.Correlation);
             }
         }
-        for (ArrayList<Float> scorelist : FragmentMS1Ranking.values()) {
-            Collections.sort(scorelist);
-            Collections.reverse(scorelist);
+//        for (ArrayList<Float> scorelist : FragmentMS1Ranking.values()) {
+//            Collections.sort(scorelist);
+//            Collections.reverse(scorelist);
+//        }
+        for (final FloatArrayList scorelist : FragmentMS1Ranking.values()){
+            scorelist.trimToSize();
+            scorelist.sortThis().reverseThis();
         }
+
         for (int clusterindex : FragmentsClu2Cur.keySet()) {
             for (PrecursorFragmentPairEdge framentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
-                ArrayList<Float> scorelist = FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB);
+//                ArrayList<Float> scorelist = FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB);
+                final FloatArrayList scorelist = FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB);
                 for (int intidx = 0; intidx < scorelist.size(); intidx++) {
                     if (scorelist.get(intidx) <= framentClusterUnit.Correlation) {
                         framentClusterUnit.FragmentMS1Rank = intidx + 1;
@@ -434,23 +448,24 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
     
     //Calculate precursor-fragment MS2 unfragmented ion ranking (described in DIA-Umpire paper)
     public void BuildFragmentUnfragranking() {
-        FragmentUnfragRanking = new HashMap<>();
+//        FragmentUnfragRanking = new HashMap<>();
+        FragmentUnfragRanking = new IntObjectHashMap();
         for (int clusterindex : UnFragIonClu2Cur.keySet()) {
             for (PrecursorFragmentPairEdge framentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {
                 if (!FragmentUnfragRanking.containsKey(framentClusterUnit.PeakCurveIndexB)) {
-                    ArrayList<Float> scorelist = new ArrayList<>();
-                    FragmentUnfragRanking.put(framentClusterUnit.PeakCurveIndexB, scorelist);
+                    FragmentUnfragRanking.put(framentClusterUnit.PeakCurveIndexB, new FloatArrayList());
                 }
                 FragmentUnfragRanking.get(framentClusterUnit.PeakCurveIndexB).add(framentClusterUnit.Correlation);
             }
         }
-        for (ArrayList<Float> scorelist : FragmentUnfragRanking.values()) {
-            Collections.sort(scorelist);
-            Collections.reverse(scorelist);
+        for (final FloatArrayList scorelist : FragmentUnfragRanking.values()){
+            scorelist.trimToSize();
+            scorelist.sortThis().reverseThis();
         }
+
         for (int clusterindex : UnFragIonClu2Cur.keySet()) {
             for (PrecursorFragmentPairEdge framentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {
-                ArrayList<Float> scorelist = FragmentUnfragRanking.get(framentClusterUnit.PeakCurveIndexB);
+                final FloatArrayList scorelist = FragmentUnfragRanking.get(framentClusterUnit.PeakCurveIndexB);
                 for (int intidx = 0; intidx < scorelist.size(); intidx++) {
                     if (scorelist.get(intidx) <= framentClusterUnit.Correlation) {
                         framentClusterUnit.FragmentMS1Rank = intidx + 1;
