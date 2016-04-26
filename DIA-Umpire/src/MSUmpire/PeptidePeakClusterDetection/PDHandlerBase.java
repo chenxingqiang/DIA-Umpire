@@ -159,6 +159,7 @@ public class PDHandlerBase {
         while(included.size()<ia[ia.length-1])
             included.add(false);
 
+        long peakCurvesCount = 0;
         for (int idx = 0; idx < idx_end; idx++) {
             int scanNO = scanCollection.GetScanNoArray(MSlevel).get(idx);
             ScanData scanData = scanCollection.GetScan(scanNO);
@@ -291,10 +292,12 @@ public class PDHandlerBase {
                     //First check if the peak curve is in targeted list
                     if (FoundInInclusionList(Peakcurve.TargetMz, Peakcurve.StartRT(), Peakcurve.EndRT())) {
 //                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+                        ++peakCurvesCount;
                         ftemp.add(fjp.submit(new PeakCurveSmoothingUnit(Peakcurve, parameter)));
                     //Then check if the peak curve passes the criteria
                     } else if (Peakcurve.GetRawSNR() > LCMSPeakBase.SNR && Peakcurve.GetPeakList().size() >= parameter.MinPeakPerPeakCurve + 2) {
 //                        LCMSPeakBase.UnSortedPeakCurves.add(Peakcurve);
+                        ++peakCurvesCount;
                         ftemp.add(fjp.submit(new PeakCurveSmoothingUnit(Peakcurve, parameter)));
                     } else {
                         Peakcurve = null;
@@ -330,7 +333,8 @@ public class PDHandlerBase {
         }
         
         System.gc();
-        Logger.getRootLogger().info(LCMSPeakBase.UnSortedPeakCurves.size() + " Peak curves found (Memory usage:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB)");
+//        Logger.getRootLogger().info(LCMSPeakBase.UnSortedPeakCurves.size() + " Peak curves found (Memory usage:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB)");
+        Logger.getRootLogger().info(peakCurvesCount + " Peak curves found (Memory usage:" + Math.round((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB)");
     }
         
     private boolean FoundInInclusionRTList(float rt){              

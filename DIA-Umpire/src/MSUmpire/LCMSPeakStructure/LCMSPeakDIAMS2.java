@@ -347,16 +347,18 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
         
         for (int clusterindex : UnFragIonClu2Cur.keySet()) {
             ArrayList<PrecursorFragmentPairEdge> newlist = new ArrayList<>();
-            ArrayList<Float> CorrArrayList = new ArrayList<>();
+            final FloatArrayList CorrArrayList = new FloatArrayList();
            HashMap<PrecursorFragmentPairEdge,Float> ScoreList=new HashMap<>();
             for (PrecursorFragmentPairEdge fragmentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {                
                 float score=fragmentClusterUnit.Correlation*fragmentClusterUnit.Correlation*(float)Math.log(fragmentClusterUnit.Intensity);
                 ScoreList.put(fragmentClusterUnit,score);
                 CorrArrayList.add(score);
             }
-            Collections.sort(CorrArrayList);
-            Collections.reverse(CorrArrayList);
-            
+//            Collections.sort(CorrArrayList);
+//            Collections.reverse(CorrArrayList);
+            CorrArrayList.trimToSize();
+            CorrArrayList.sortThis().reverseThis();
+
             for (PrecursorFragmentPairEdge fragmentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {
                 int CorrRank = 0;                
                 for (int intidx = 0; intidx < CorrArrayList.size(); intidx++) {

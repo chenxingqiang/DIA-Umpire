@@ -80,6 +80,7 @@ public class PeakCurve implements Serializable  {
             XYData pt = new XYData(point.getX(), point.getZ());
             SmoothData.AddPoint(pt);
         }
+        SmoothData.Data.Finalize();// to sorted array
         Bspline bspline = new Bspline();
         SmoothData = bspline.Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
         bspline = null;
