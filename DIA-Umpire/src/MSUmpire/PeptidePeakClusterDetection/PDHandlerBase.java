@@ -218,9 +218,9 @@ public class PDHandlerBase {
                     //Initialize a new peak curve
                     PeakCurve Peakcurve = new PeakCurve(parameter);
                     //Add a background peak
-                    Peakcurve.AddPeak(new XYZData(preRT, startmz, scanData.background));
+                    Peakcurve.AddPeak(preRT, startmz, scanData.background);
                     //Add the starting peak
-                    Peakcurve.AddPeak(new XYZData(scanData.RetentionTime, startmz, startint));
+                    Peakcurve.AddPeak(scanData.RetentionTime, startmz, startint);
                     Peakcurve.StartScan = scanNO;
 
                     int missedScan = 0;
@@ -242,7 +242,7 @@ public class PDHandlerBase {
                         //If the scan is empty
                         if (scanData2.PointCount() == 0) {                            
                             if (parameter.FillGapByBK) {
-                                Peakcurve.AddPeak(new XYZData(scanData2.RetentionTime, Peakcurve.TargetMz, scanData2.background));
+                                Peakcurve.AddPeak(scanData2.RetentionTime, Peakcurve.TargetMz, scanData2.background);
                             }
                             missedScan++;
                             continue;
@@ -278,15 +278,15 @@ public class PDHandlerBase {
                         //No peak in the PPM window has been found
                         if (currentmz == 0f) {
                             if (parameter.FillGapByBK) {
-                                Peakcurve.AddPeak(new XYZData(scanData2.RetentionTime, Peakcurve.TargetMz, scanData2.background));
+                                Peakcurve.AddPeak(scanData2.RetentionTime, Peakcurve.TargetMz, scanData2.background);
                             }
                             missedScan++;
                         } else {
                             missedScan = 0;
-                            Peakcurve.AddPeak(new XYZData(scanData2.RetentionTime, currentmz, currentint));
+                            Peakcurve.AddPeak(scanData2.RetentionTime, currentmz, currentint);
                         }
                     }
-                    Peakcurve.AddPeak(new XYZData(endrt, Peakcurve.TargetMz, bk));
+                    Peakcurve.AddPeak(endrt, Peakcurve.TargetMz, bk);
                     Peakcurve.EndScan=endScan;
 
                     //First check if the peak curve is in targeted list

@@ -32,8 +32,7 @@ public class XYData implements Comparable<XYData>, Serializable {
 
     private static final long serialVersionUID = 973492749274921L;
 
-    private float X;
-    private float Y;
+    private float X, Y;
 
 //    private synchronized void writeObject(java.io.ObjectOutputStream stream) throws java.io.IOException {        
 //        stream.defaultWriteObject();

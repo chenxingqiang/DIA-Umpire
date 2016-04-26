@@ -462,6 +462,7 @@ public class LCMSPeakBase {
         if (PeakCurveListRT == null) {
             PeakCurveListRT=new SortedCurveCollectionApexRT();
             PeakCurveListRT.addAll(UnSortedPeakCurves);
+            PeakCurveListRT.Finalize();
         }
         return PeakCurveListRT;
     }

@@ -36,9 +36,37 @@ import org.eclipse.collections.impl.set.mutable.primitive.ByteHashSet;
  * @author Chih-Chiang Tsou <chihchiang.tsou@gmail.com>
  */
 public class PeakCurve implements Serializable  {
+    public static class XYZDataList{
+        public XYZDataList(){}
+        FloatArrayList xyzdata=new FloatArrayList();
+        public void addXYZ(XYZData d){
+            xyzdata.ensureCapacity(xyzdata.size()+3);
+            xyzdata.add(d.getX());
+            xyzdata.add(d.getY());
+            xyzdata.add(d.getZ());
+        }
+        public void add(float x,float y, float z){
+            xyzdata.ensureCapacity(xyzdata.size()+3);
+            xyzdata.add(x);
+            xyzdata.add(y);
+            xyzdata.add(z);
+        }
+        public XYZData get(int i){return new XYZData(getXat(i),getYat(i),getZat(i));}
+        public float getXat(int i){return xyzdata.get(3*i);}
+        public float getYat(int i){return xyzdata.get(3*i+1);}
+        public float getZat(int i){return xyzdata.get(3*i+2);}
+
+        public void setXat(int i,float f){xyzdata.set(3*i,f);}
+        public void setYat(int i,float f){xyzdata.set(3*i+1,f);}
+        public void setZat(int i,float f){xyzdata.set(3*i+2,f);}
+
+        public int size(){return xyzdata.size()/3;}
+        public void clear(){xyzdata.clear();}
+    }
     private static final long serialVersionUID = 6498163564821L;
 
-    private ArrayList<XYZData> PeakList;
+//    private ArrayList<XYZData> PeakList;
+    private  XYZDataList PeakList;
     //X: retention time
     //Y: m/z
     //Z: intensity
@@ -67,7 +95,8 @@ public class PeakCurve implements Serializable  {
     public float MzVar = -1f;
     public transient SortedRidgeCollectionClass PeakRidgeList;
     public transient WaveletMassDetector waveletMassDetector;
-    private transient ArrayList<XYZData> PeakRegionList;
+//    private transient ArrayList<XYZData> PeakRegionList;
+    private transient XYZDataList PeakRegionList;
 //    public transient ArrayList<Float> RegionRidge;
     public transient FloatArrayList RegionRidge;
 //    private transient ArrayList<ArrayList<Float>> NoRidgeRegion;
@@ -76,8 +105,10 @@ public class PeakCurve implements Serializable  {
 
     //using B-spline to generate smoothed peak signals
     public void DoBspline() {
-        for (XYZData point : PeakList) {
-            XYData pt = new XYData(point.getX(), point.getZ());
+//        for (XYZData point : PeakList) {
+        for (int i=0; i<PeakList.size();++i) {
+//            XYData pt = new XYData(point.getX(), point.getZ());
+            XYData pt = new XYData(PeakList.getXat(i), PeakList.getZat(i));
             SmoothData.AddPoint(pt);
         }
         SmoothData.Data.Finalize();// to sorted array
@@ -87,8 +118,10 @@ public class PeakCurve implements Serializable  {
     }
 
     public void DoInterpolation() {
-        for (XYZData point : PeakList) {
-            XYData pt = new XYData(point.getX(), point.getZ());
+//        for (XYZData point : PeakList) {
+        for (int i=0; i<PeakList.size();++i) {
+//            XYData pt = new XYData(point.getX(), point.getZ());
+            XYData pt = new XYData(PeakList.getXat(i), PeakList.getZat(i));
             SmoothData.AddPoint(pt);
         }
         LinearInterpolation interpo = new LinearInterpolation();
@@ -115,7 +148,8 @@ public class PeakCurve implements Serializable  {
     public void DetectPeakRegion() {
         ArrayList<XYData> PeakArrayList = new ArrayList<>();
         PeakRidgeList = new SortedRidgeCollectionClass();
-        PeakRegionList = new ArrayList<>();
+//        PeakRegionList = new ArrayList<>();
+        PeakRegionList = new XYZDataList();
         NoRidgeRegion = new ArrayList<>();
         if (RTWidth() * parameter.NoPeakPerMin < 1) {
             return;
@@ -220,7 +254,7 @@ public class PeakCurve implements Serializable  {
         }
 
         if (PeakRidgeList.size() <= 1) {
-            PeakRegionList.add(new XYZData(SmoothData.Data.get(0).getX(), ApexRT, SmoothData.Data.get(SmoothData.PointCount() - 1).getX()));
+            PeakRegionList.add(SmoothData.Data.get(0).getX(), ApexRT, SmoothData.Data.get(SmoothData.PointCount() - 1).getX());
 //            ArrayList<Float> RidgeRTs = new ArrayList<>();
             final FloatArrayList RidgeRTs = new FloatArrayList();
             RidgeRTs.add(ApexRT);
@@ -288,7 +322,7 @@ public class PeakCurve implements Serializable  {
                     maxridge = PeakRidgeList.get(i);
                 }
                 if (Splitpoints[i]) {
-                    PeakRegionList.add(new XYZData(ValleyPoints[startidx].getX(), maxridge.RT, ValleyPoints[i + 1].getX()));
+                    PeakRegionList.add(ValleyPoints[startidx].getX(), maxridge.RT, ValleyPoints[i + 1].getX());
                     NoRidgeRegion.add(RidgeRTs);
 
                     maxridge = PeakRidgeList.get(i + 1);
@@ -301,8 +335,8 @@ public class PeakCurve implements Serializable  {
             if (PeakRidgeList.get(PeakRidgeList.size() - 1).intensity > maxridge.intensity) {
                 maxridge = PeakRidgeList.get(PeakRidgeList.size() - 1);
             }
-            PeakRegionList.add(new XYZData(ValleyPoints[startidx].getX(), maxridge.RT, ValleyPoints[PeakRidgeList.size()].getX()));
-
+            PeakRegionList.add(ValleyPoints[startidx].getX(), maxridge.RT, ValleyPoints[PeakRidgeList.size()].getX());
+            RidgeRTs.trimToSize();
             NoRidgeRegion.add(RidgeRTs);
         }
         waveletMassDetector = null;
@@ -352,16 +386,19 @@ public class PeakCurve implements Serializable  {
             PeakCurve peakCurve = new PeakCurve(parameter);
             peakCurve.RegionRidge = NoRidgeRegion.get(i);
             tempArrayList.add(peakCurve);
-            XYZData region = GetPeakRegionList().get(i);
-            if (region.getZ() - region.getX() > parameter.MaxCurveRTRange) {
-                int leftidx = GetSmoothedList().GetLowerIndexOfX(region.getX());
-                int rightidx = GetSmoothedList().GetHigherIndexOfX(region.getZ());
+//            XYZData region = GetPeakRegionList().get(i);
+            float x= GetPeakRegionList().getXat(i);
+            float y= GetPeakRegionList().getYat(i);
+            float z= GetPeakRegionList().getZat(i);
+            if (z - x > parameter.MaxCurveRTRange) {
+                int leftidx = GetSmoothedList().GetLowerIndexOfX(x);
+                int rightidx = GetSmoothedList().GetHigherIndexOfX(z);
                 XYData left = GetSmoothedList().Data.get(leftidx);
                 XYData right = GetSmoothedList().Data.get(rightidx);
                 while ((right.getX() - left.getX()) > parameter.MaxCurveRTRange) {
-                    if (right.getX() - region.getY() <= parameter.MaxCurveRTRange / 4f) {
+                    if (right.getX() - y <= parameter.MaxCurveRTRange / 4f) {
                         leftidx++;
-                    } else if (region.getY() - left.getX() <= parameter.MaxCurveRTRange / 4f) {
+                    } else if (y - left.getX() <= parameter.MaxCurveRTRange / 4f) {
                         rightidx--;
                     } else if (left.getY() < right.getY()) {
                         leftidx++;
@@ -371,18 +408,26 @@ public class PeakCurve implements Serializable  {
                     left = GetSmoothedList().Data.get(leftidx);
                     right = GetSmoothedList().Data.get(rightidx);
                 }
-                region.setX(left.getX());
-                region.setZ(right.getX());
+//                region.setX(left.getX());
+                GetPeakRegionList().setXat(i,left.getX());
+//                region.setZ(right.getX());
+                GetPeakRegionList().setZat(i,right.getX());
             }
         }
 
         //Add corresponding raw peaks
         for (int i = 0; i < GetPeakList().size(); i++) {
-            XYZData peak = GetPeakList().get(i);
+//            XYZData peak = GetPeakList().get(i);
+            float x = GetPeakList().getXat(i);
+            float y = GetPeakList().getYat(i);
+            float z = GetPeakList().getZat(i);
             for (int j = 0; j < GetPeakRegionList().size(); j++) {
-                XYZData region = GetPeakRegionList().get(j);
-                if (peak.getX() >= region.getX() && peak.getX() <= region.getZ()) {
-                    tempArrayList.get(j).AddPeak(peak);
+//                XYZData region = GetPeakRegionList().get(j);
+                float regionx = GetPeakRegionList().getXat(j);
+                float regiony = GetPeakRegionList().getYat(j);
+                float regionz = GetPeakRegionList().getZat(j);
+                if (x >= regionx && x <= regionz) {
+                    tempArrayList.get(j).AddPeak(x,y,z);
                     break;
                 }
             }
@@ -392,8 +437,10 @@ public class PeakCurve implements Serializable  {
         for (int i = 0; i < GetSmoothedList().Data.size(); i++) {
             XYData peak = GetSmoothedList().Data.get(i);
             for (int j = 0; j < GetPeakRegionList().size(); j++) {
-                XYZData region = GetPeakRegionList().get(j);
-                if (peak.getX() >= region.getX() && peak.getX() <= region.getZ()) {
+//                XYZData region = GetPeakRegionList().get(j);
+                float regionx = GetPeakRegionList().getXat(j);
+                float regionz = GetPeakRegionList().getZat(j);
+                if (peak.getX() >= regionx && peak.getX() <= regionz) {
                     tempArrayList.get(j).GetSmoothedList().Data.add(peak);
                     break;
                 }
@@ -412,13 +459,16 @@ public class PeakCurve implements Serializable  {
     public PeakCurve(InstrumentParameter parameter) {
         this.parameter = parameter;
         SmoothData = new XYPointCollection();
-        PeakList = new ArrayList<>();
-        PeakRegionList = new ArrayList<>();
+//        PeakList = new ArrayList<>();
+        PeakList = new XYZDataList();
+//        PeakRegionList = new ArrayList<>();
+        PeakRegionList = new XYZDataList();
     }
 
     public float StartInt() {
         if (startint == 0f) {
-            startint = PeakList.get(0).getZ();
+//            startint = PeakList.get(0).getZ();
+            startint = PeakList.getZat(0);
         }
         return startint;
     }
@@ -428,7 +478,8 @@ public class PeakCurve implements Serializable  {
             if (SmoothData != null && SmoothData.Data.size() > 0) {
                 startrt = SmoothData.Data.get(0).getX();
             } else {
-                startrt = PeakList.get(1).getX();
+//                startrt = PeakList.get(1).getX();
+                startrt = PeakList.getXat(1);
             }
         }
         return startrt;
@@ -491,13 +542,14 @@ public class PeakCurve implements Serializable  {
 
     public float EndRT() {
         if (endrt == -1f) {
-            endrt = PeakList.get(PeakList.size() - 2).getX();            
+            endrt = PeakList.getXat(PeakList.size() - 2);
         }
         return endrt;
     }
 
     public float LastScanRT() {
-        return PeakList.get(PeakList.size() - 1).getX();
+//        return PeakList.get(PeakList.size() - 1).getX();
+        return PeakList.getXat(PeakList.size() - 1);
     }
 
     public XYPointCollection GetPeakCollection() {
@@ -540,13 +592,15 @@ public class PeakCurve implements Serializable  {
 
         float Width = 0f;
         if (PeakList.size() > 0) {
-            Width = PeakList.get(PeakList.size() - 1).getX() - PeakList.get(0).getX();
+//            Width = PeakList.get(PeakList.size() - 1).getX() - PeakList.get(0).getX();
+            Width = PeakList.getXat(PeakList.size() - 1) - PeakList.getXat(0);
         } else if (SmoothData.PointCount() > 0) {
             Width = SmoothData.Data.get(SmoothData.PointCount() - 1).getX() - SmoothData.Data.get(0).getX();
         }
         return Width;
     }
-    public ArrayList<XYZData> GetPeakList() {
+//    public ArrayList<XYZData> GetPeakList() {
+    public XYZDataList GetPeakList() {
         return PeakList;
     }
 
@@ -554,7 +608,7 @@ public class PeakCurve implements Serializable  {
         return SmoothData;
     }
 
-    public ArrayList<XYZData> GetPeakRegionList() {
+    public XYZDataList GetPeakRegionList() {
         return PeakRegionList;
     }
 
@@ -576,17 +630,31 @@ public class PeakCurve implements Serializable  {
         this.waveletMassDetector = null;
     }
 
-    public void AddPeak(XYZData xYZPoint) {
+//    public void AddPeak(XYZData xYZPoint) {
+//
+//        PeakList.add(xYZPoint);
+//        TotalIntMzF += xYZPoint.getY() * xYZPoint.getZ() * xYZPoint.getZ();
+//        TotalIntF += xYZPoint.getZ() * xYZPoint.getZ();
+//        if (xYZPoint.getZ() > ApexInt) {
+//            ApexInt = xYZPoint.getZ();
+//            ApexRT = xYZPoint.getX();
+//        }
+//        if (xYZPoint.getZ() < minIntF) {
+//            minIntF = xYZPoint.getZ();
+//        }
+//        TargetMz = TotalIntMzF / TotalIntF;
+//    }
+    public void AddPeak(float x, float y, float z) {
 
-        PeakList.add(xYZPoint);
-        TotalIntMzF += xYZPoint.getY() * xYZPoint.getZ() * xYZPoint.getZ();
-        TotalIntF += xYZPoint.getZ() * xYZPoint.getZ();
-        if (xYZPoint.getZ() > ApexInt) {
-            ApexInt = xYZPoint.getZ();
-            ApexRT = xYZPoint.getX();
+        PeakList.add(x,y,z);
+        TotalIntMzF += y * z * z;
+        TotalIntF += z*z;
+        if (z > ApexInt) {
+            ApexInt = z;
+            ApexRT = x;
         }
-        if (xYZPoint.getZ() < minIntF) {
-            minIntF = xYZPoint.getZ();
+        if (z < minIntF) {
+            minIntF = z;
         }
         TargetMz = TotalIntMzF / TotalIntF;
     }
@@ -594,7 +662,8 @@ public class PeakCurve implements Serializable  {
     public void CalculateMzVar() {
         MzVar = 0f;
         for (int j = 0; j < PeakList.size(); j++) {
-            MzVar += (PeakList.get(j).getX() - TargetMz) * (PeakList.get(j).getX() - TargetMz);
+//            MzVar += (PeakList.get(j).getX() - TargetMz) * (PeakList.get(j).getX() - TargetMz);
+            MzVar += (PeakList.getXat(j) - TargetMz) * (PeakList.getXat(j) - TargetMz);
         }
         MzVar /= PeakList.size();
     }

@@ -361,7 +361,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
                 ElutionTimeToScanNoMap.put(rt, scanno);
                 ScanToElutionTime.put(scanno, rt);
                 MsLevelList.put(scanno, mslevel);
-            } 
+            }
+            ScanToElutionTime.compact();
             fileHandler.close();
         }
     }
