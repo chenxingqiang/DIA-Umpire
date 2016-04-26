@@ -154,10 +154,8 @@ public class PDHandlerBase {
             final ScanData sd=scanCollection.GetScan(scanNO);
             ia[idx+1]=sd.Data.size()+ia[idx];
         }
-        
-        final BooleanArrayList included = new BooleanArrayList(ia[ia.length-1]);
-        while(included.size()<ia[ia.length-1])
-            included.add(false);
+
+        final boolean[] included = new boolean[ia[ia.length-1]];
 
         long peakCurvesCount = 0;
         for (int idx = 0; idx < idx_end; idx++) {
@@ -185,12 +183,12 @@ public class PDHandlerBase {
                 //Check if the current peak has been included in previously developed peak curves
 //                if (!IncludedHashMap.contains(scanNO + "_" + peak.getX())) {//The peak hasn't been included
                 final int id_scanNO_peak=int_id(ia, idx, i);
-                if (!included.get(id_scanNO_peak)) {//The peak hasn't been included
+                if (!included[id_scanNO_peak]) {//The peak hasn't been included
                     //The current peak will be the starting peak of a new peak curve
                     //Add it to the hash table
 
 //                    IncludedHashMap.add(scanNO + "_" + peak.getX());
-                    included.set(id_scanNO_peak, true);
+                    included[id_scanNO_peak] = true;
 
                     float startmz = peak.getX();
                     float startint = peak.getY();
@@ -199,10 +197,10 @@ public class PDHandlerBase {
                     for (int j = i + 1; j < scanData.PointCount(); j++) {
                         XYData currentpeak = scanData.Data.get(j);
                         final int id_scanNO_currentpeak = int_id(ia,idx,j);
-                        if (!included.get(id_scanNO_currentpeak)) {
+                        if (!included[id_scanNO_currentpeak]) {
 //                        if (!IncludedHashMap.contains(scanNO + "_" + currentpeak.getX())) {
                             if (InstrumentParameter.CalcPPM(currentpeak.getX(), startmz) <= PPM) {
-                                included.set(id_scanNO_currentpeak,true);
+                                included[id_scanNO_currentpeak]=true;
 //                                IncludedHashMap.add(scanNO + "_" + currentpeak.getX());
 
                                 if (currentpeak.getY() >= startint) {
@@ -257,15 +255,15 @@ public class PDHandlerBase {
                             }
                             //Check if the peak has been included or not
                             final int int_id_scanNO2_currentpeak=int_id(ia,idx2,pkidx);
-                            if (!included.get(int_id_scanNO2_currentpeak)) {
-//                            if (!IncludedHashMap.contains(scanNO2 + "_" + currentpeak.getX())) {
+//                            if (!included.get(int_id_scanNO2_currentpeak)) {
+                            if (!included[int_id_scanNO2_currentpeak]) {
                                 if (InstrumentParameter.CalcPPM(currentpeak.getX(), Peakcurve.TargetMz) > PPM) {
                                     if (currentpeak.getX() > Peakcurve.TargetMz) {
                                         break;
                                     }
                                 } else {
                                     //////////The peak is in the ppm window, select the highest peak
-                                    included.set(int_id_scanNO2_currentpeak, true);
+                                    included[int_id_scanNO2_currentpeak] = true;
 //                                    IncludedHashMap.add(scanNO2 + "_" + currentpeak.getX());
                                     if (currentint < currentpeak.getY()) {
                                         currentmz = currentpeak.getX();
@@ -310,7 +308,7 @@ public class PDHandlerBase {
             }
             /** the if statement below does PeakCurveSmoothing() and ClearRawPeaks()
              */
-            final int step=1<<9;
+            final int step=fjp.getParallelism()*256;
             if (ftemp.size() == step || idx + 1 == idx_end) {
                 final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view = 
                         idx + 1 == idx_end?
