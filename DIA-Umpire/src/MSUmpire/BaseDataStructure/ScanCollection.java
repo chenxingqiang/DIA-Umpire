@@ -109,10 +109,7 @@ public class ScanCollection implements Disposable{
     }
 
     public ScanData GetScan(int ScanNO) {
-        if (ScanHashMap.containsKey(ScanNO)) {
-            return ScanHashMap.get(ScanNO);
-        }
-        return null;
+        return ScanHashMap.get(ScanNO);
     }
 
     public boolean ScanAdded(int ScanNo) {

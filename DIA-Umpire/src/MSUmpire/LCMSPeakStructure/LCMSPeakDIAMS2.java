@@ -413,10 +413,10 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
     public void BuildFragmentMS1ranking() {
 //        FragmentMS1Ranking = new HashMap<>();
         final IntObjectHashMap<FloatArrayList> FragmentMS1Ranking = new IntObjectHashMap<>();
-        for (int clusterindex : FragmentsClu2Cur.keySet()) {
-            for (PrecursorFragmentPairEdge framentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
+        for (final ArrayList<PrecursorFragmentPairEdge> e: FragmentsClu2Cur.values()) {
+            for (final PrecursorFragmentPairEdge framentClusterUnit : e) {
                 FragmentMS1Ranking
-                        .getIfAbsentPut(framentClusterUnit.PeakCurveIndexB,new FloatArrayList())
+                        .getIfAbsentPut(framentClusterUnit.PeakCurveIndexB, new FloatArrayList())
                         .add(framentClusterUnit.Correlation);
             }
         }
@@ -426,9 +426,8 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
             scorelist.sortThis().reverseThis();
         }
 
-        for (int clusterindex : FragmentsClu2Cur.keySet()) {
-            for (PrecursorFragmentPairEdge framentClusterUnit : FragmentsClu2Cur.get(clusterindex)) {
-//                ArrayList<Float> scorelist = FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB);
+        for (final ArrayList<PrecursorFragmentPairEdge> e: FragmentsClu2Cur.values()) {
+            for (final PrecursorFragmentPairEdge framentClusterUnit : e) {
                 final FloatArrayList scorelist = FragmentMS1Ranking.get(framentClusterUnit.PeakCurveIndexB);
                 for (int intidx = 0; intidx < scorelist.size(); intidx++) {
                     if (scorelist.get(intidx) <= framentClusterUnit.Correlation) {
@@ -445,8 +444,8 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
     public void BuildFragmentUnfragranking() {
 //        FragmentUnfragRanking = new HashMap<>();
         final IntObjectHashMap<FloatArrayList> FragmentUnfragRanking = new IntObjectHashMap();
-        for (int clusterindex : UnFragIonClu2Cur.keySet()) {
-            for (PrecursorFragmentPairEdge framentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {
+        for (final ArrayList<PrecursorFragmentPairEdge> e: UnFragIonClu2Cur.values()) {
+            for (final PrecursorFragmentPairEdge framentClusterUnit : e) {
                 FragmentUnfragRanking
                         .getIfAbsentPut(framentClusterUnit.PeakCurveIndexB, new FloatArrayList())
                         .add(framentClusterUnit.Correlation);
@@ -457,8 +456,8 @@ public class LCMSPeakDIAMS2 extends LCMSPeakBase {
             scorelist.sortThis().reverseThis();
         }
 
-        for (int clusterindex : UnFragIonClu2Cur.keySet()) {
-            for (PrecursorFragmentPairEdge framentClusterUnit : UnFragIonClu2Cur.get(clusterindex)) {
+        for (final ArrayList<PrecursorFragmentPairEdge> e: UnFragIonClu2Cur.values()) {
+            for (final PrecursorFragmentPairEdge framentClusterUnit : e) {
                 final FloatArrayList scorelist = FragmentUnfragRanking.get(framentClusterUnit.PeakCurveIndexB);
                 for (int intidx = 0; intidx < scorelist.size(); intidx++) {
                     if (scorelist.get(intidx) <= framentClusterUnit.Correlation) {

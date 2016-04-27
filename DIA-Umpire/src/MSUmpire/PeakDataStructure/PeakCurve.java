@@ -25,6 +25,7 @@ import MSUmpire.BaseDataStructure.XYPointCollection;
 import MSUmpire.BaseDataStructure.XYZData;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import org.eclipse.collections.impl.list.mutable.primitive.FloatArrayList;
@@ -38,7 +39,7 @@ import org.eclipse.collections.impl.set.mutable.primitive.ByteHashSet;
 public class PeakCurve implements Serializable  {
     public static class XYZDataList{
         public XYZDataList(){}
-        FloatArrayList xyzdata=new FloatArrayList();
+        final FloatArrayList xyzdata=new FloatArrayList();
         public void addXYZ(XYZData d){
             xyzdata.ensureCapacity(xyzdata.size()+3);
             xyzdata.add(d.getX());
@@ -112,11 +113,24 @@ public class PeakCurve implements Serializable  {
             SmoothData.AddPoint(pt);
         }
         SmoothData.Data.Finalize();// to sorted array
-        Bspline bspline = new Bspline();
-        SmoothData = bspline.Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
-        bspline = null;
+        SmoothData = new Bspline().Run(SmoothData, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
     }
+    public void DoBspline_() {
+        final long[] unslong = new long[PeakList.size()];
+        for (int i=0; i<PeakList.size();++i)
+            unslong[i]=Bspline.ff_to_long(PeakList.getXat(i), PeakList.getZat(i));
 
+        Arrays.sort(unslong);
+        final float[] sorted=new float[unslong.length*2];
+        for(int i=0;i<sorted.length/2;++i){
+            sorted[2*i]=Bspline.get_X(unslong[i]);
+            sorted[2*i+1]=Bspline.get_Y(unslong[i]);
+        }
+        final float[] smoothed=Bspline.Run__(sorted, (int) Math.max((RTWidth() * parameter.NoPeakPerMin), PeakList.size()), 2);
+        for(int i=0;i<smoothed.length/2;++i)
+            this.SmoothData.AddPoint(new XYData(smoothed[2*i],smoothed[2*i+1]));
+        this.SmoothData.Data.Finalize();
+    }
     public void DoInterpolation() {
 //        for (XYZData point : PeakList) {
         for (int i=0; i<PeakList.size();++i) {
@@ -424,7 +438,6 @@ public class PeakCurve implements Serializable  {
             for (int j = 0; j < GetPeakRegionList().size(); j++) {
 //                XYZData region = GetPeakRegionList().get(j);
                 float regionx = GetPeakRegionList().getXat(j);
-                float regiony = GetPeakRegionList().getYat(j);
                 float regionz = GetPeakRegionList().getZat(j);
                 if (x >= regionx && x <= regionz) {
                     tempArrayList.get(j).AddPeak(x,y,z);
