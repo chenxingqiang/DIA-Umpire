@@ -56,7 +56,7 @@ public class MixtureModelKDESemiParametric {
     private EmpiricalDist IDEmpiricalDist;
     double bandWidth;
     NormalDist kern = new NormalDist();
-    public Float[][] MixtureModelProb;
+    public float[][] MixtureModelProb;
     MixtureModel mmc;
     public int NoBinPoints = 1000;
     float max;
@@ -102,7 +102,7 @@ public class MixtureModelKDESemiParametric {
         }
         writer.close();
         
-        MixtureModelProb = new Float[NoBinPoints + 1][3];
+        MixtureModelProb = new float[NoBinPoints + 1][3];
         float positiveaccu = 0f;
         float negativeaccu = 0f;
 

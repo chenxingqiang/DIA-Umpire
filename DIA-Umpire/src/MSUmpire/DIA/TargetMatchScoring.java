@@ -73,7 +73,7 @@ public class TargetMatchScoring implements Serializable {
     String LibID;
     public transient int NoBinPoints = 1000;
     MatchSubscore matchSubscore = new MatchSubscore(0);
-    Float[][] MixtureModelProb;
+    float[][] MixtureModelProb;
     ArrayList<PeakGroupScore> decoyModelingList = new ArrayList<>();    
     private transient boolean UseOldVersion=false;
 
@@ -602,7 +602,7 @@ public class TargetMatchScoring implements Serializable {
             }
         }
         writer.close();
-        MixtureModelProb = new Float[NoPoints + 1][3];
+        MixtureModelProb = new float[NoPoints + 1][3];
         float positiveaccu = 0f;
         float negativeaccu = 0f;
 
