@@ -177,6 +177,7 @@ public class PeakCurve implements Serializable  {
 
         int maxScale = waveletMassDetector.PeakRidge.length - 1;
 
+        float[] DisMatrixF = new float[PeakRidgeList.size()*waveletMassDetector.PeakRidge[maxScale].size()*2];
         //trace peak ridge from maximum wavelet scale to minimum scale
         for (int i = maxScale; i >= 0; i--) {
             //Get peak ridge list (maximum RT points given a CWT scale
@@ -191,11 +192,16 @@ public class PeakCurve implements Serializable  {
             }
 
             //RT distance matrix between the groupped peak riges and peak ridges extracted from current CWT scale
-            float[][] DisMatrixF = new float[PeakRidgeList.size()][PeakRidgeArray.size()];
+            final int r=PeakRidgeList.size(), c=PeakRidgeArray.size();
+//            float[][] DisMatrixF = new float[PeakRidgeList.size()][PeakRidgeArray.size()];
+//            final float[] DisMatrixF = new float[r*c];
+            if(r*c>DisMatrixF.length)
+                DisMatrixF = new float[Math.max(r*c,DisMatrixF.length*2)];
 
             for (int k = 0; k < PeakRidgeList.size(); k++) {///For each existing peak ridge line
                 for (int l = 0; l < PeakRidgeArray.size(); l++) {
-                    DisMatrixF[k][l] = Math.abs(PeakRidgeList.get(k).RT - PeakRidgeArray.get(l).getX());
+//                    DisMatrixF[k][l] = Math.abs(PeakRidgeList.get(k).RT - PeakRidgeArray.get(l).getX());
+                    DisMatrixF[k*c+l] = Math.abs(PeakRidgeList.get(k).RT - PeakRidgeArray.get(l).getX());
                 }
             }
 
@@ -208,8 +214,10 @@ public class PeakCurve implements Serializable  {
                 for (int k = 0; k < PeakRidgeList.size(); k++) {
                     for (int l = 0; l < PeakRidgeArray.size(); l++) {
                         {
-                            if (DisMatrixF[k][l] < closest) {
-                                closest = DisMatrixF[k][l];
+//                            if (DisMatrixF[k][l] < closest) {
+                            if (DisMatrixF[k*c+l] < closest) {
+//                                closest = DisMatrixF[k][l];
+                                closest = DisMatrixF[k*c+l];
                                 ExistingRideIdx = k;
                                 PeakRidgeInx = l;
                             }
@@ -226,10 +234,12 @@ public class PeakCurve implements Serializable  {
                     PeakRidgeList.add(ridge);
                     RemovedRidgeList.add(nearestRidge);
                     for (int k = 0; k < PeakRidgeList.size(); k++) {
-                        DisMatrixF[k][PeakRidgeInx] = Float.MAX_VALUE;
+                        DisMatrixF[k*c+PeakRidgeInx] = Float.MAX_VALUE;
+//                        DisMatrixF[k][PeakRidgeInx] = Float.MAX_VALUE;
                     }
                     for (int l = 0; l < PeakRidgeArray.size(); l++) {
-                        DisMatrixF[ExistingRideIdx][l] = Float.MAX_VALUE;
+                        DisMatrixF[ExistingRideIdx*c+l] = Float.MAX_VALUE;
+//                        DisMatrixF[ExistingRideIdx][l] = Float.MAX_VALUE;
                     }
                 } else {
                     conti = false;

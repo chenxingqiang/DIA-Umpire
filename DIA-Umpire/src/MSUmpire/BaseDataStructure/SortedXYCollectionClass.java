@@ -36,7 +36,9 @@ import java.util.Iterator;
 public class SortedXYCollectionClass extends SortedList<XYData> implements Serializable{
     private static final long serialVersionUID = 65464643184541L;
 
-    private float[][] SortedArray;
+//    private float[][] SortedArray;
+    private float[] SortedArray;
+
     public int size;
 
     public SortedXYCollectionClass() {
@@ -89,22 +91,24 @@ public class SortedXYCollectionClass extends SortedList<XYData> implements Seria
         stream.defaultWriteObject();
         stream.writeInt(size);
         for (int i = 0; i < size; i++) {
-            stream.writeFloat(SortedArray[0][i]);
-            stream.writeFloat(SortedArray[1][i]);
-            //stream.writeObject(get(i));
+//            stream.writeFloat(SortedArray[0][i]);
+//            stream.writeFloat(SortedArray[1][i]);
+            stream.writeFloat(SortedArray[0+i*2]);
+            stream.writeFloat(SortedArray[1+i*2]);
         }
     }
     private void readObject(java.io.ObjectInputStream in) throws ClassNotFoundException, IOException {
         in.defaultReadObject();
         Finalized = true;
         size=in.readInt();
-        SortedArray = new float[2][size];
+//        SortedArray = new float[2][size];
+        SortedArray = new float[2*size];
         for (int i = 0; i < size; i++) {            
             //XYData xy = (XYData) in.readObject();
 //            SortedArray[0][i] = xy.getX();
 //            SortedArray[1][i] = xy.getY();
-            SortedArray[0][i] = in.readFloat();
-            SortedArray[1][i] = in.readFloat();
+            SortedArray[0+i*2] = in.readFloat();
+            SortedArray[1+i*2] = in.readFloat();
         }
     }
     
@@ -114,11 +118,12 @@ public class SortedXYCollectionClass extends SortedList<XYData> implements Seria
         ClearTree();
         Finalized = true;
         size = FinalizedSortedArray.length;
-        SortedArray = new float[2][size];
+//        SortedArray = new float[2][size];
+        SortedArray = new float[2*size];
         for (int i = 0; i < size; i++) {
             XYData xy = (XYData) FinalizedSortedArray[i];
-            SortedArray[0][i] = xy.getX();
-            SortedArray[1][i] = xy.getY();
+            SortedArray[0+i*2] = xy.getX();
+            SortedArray[1+i*2] = xy.getY();
         }
         FinalizedSortedArray = null;
     }
@@ -126,7 +131,8 @@ public class SortedXYCollectionClass extends SortedList<XYData> implements Seria
     @Override
     public XYData get(int index) {
         if (Finalized) {
-            return new XYData(SortedArray[0][index], SortedArray[1][index]);
+//            return new XYData(SortedArray[0][index], SortedArray[1][index]);
+            return new XYData(SortedArray[0+2*index], SortedArray[1+2*index]);
         }
         return (XYData) findNodeAtIndex(index).getValue();
     }

@@ -24,7 +24,6 @@ import MSUmpire.BaseDataStructure.ScanCollection;
 import MSUmpire.BaseDataStructure.ScanData;
 import MSUmpire.BaseDataStructure.XYData;
 import MSUmpire.BaseDataStructure.XYPointCollection;
-import MSUmpire.BaseDataStructure.XYZData;
 import MSUmpire.LCMSPeakStructure.LCMSPeakBase;
 import MSUmpire.PeakDataStructure.PeakCluster;
 import MSUmpire.PeakDataStructure.PeakCurve;
