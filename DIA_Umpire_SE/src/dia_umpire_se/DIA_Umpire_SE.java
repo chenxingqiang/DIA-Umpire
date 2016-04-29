@@ -366,6 +366,8 @@ public class DIA_Umpire_SE {
                 DiaFile.process();
                 time = System.currentTimeMillis() - time;
                 Logger.getRootLogger().info(MSFilePath + " processed time:" + String.format("%d hour, %d min, %d sec", TimeUnit.MILLISECONDS.toHours(time), TimeUnit.MILLISECONDS.toMinutes(time) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(time)), TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))));
+            }else{
+                throw new RuntimeException("file: “"+MSFile+"” does not exist!");
             }
             Logger.getRootLogger().info("Job complete");
             Logger.getRootLogger().info("=================================================================================================");
