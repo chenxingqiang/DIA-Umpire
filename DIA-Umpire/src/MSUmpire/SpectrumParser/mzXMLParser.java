@@ -25,6 +25,8 @@ import MSUmpire.BaseDataStructure.SpectralDataType;
 import MSUmpire.BaseDataStructure.XYData;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -35,6 +37,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
 import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
+import org.eclipse.collections.impl.list.mutable.primitive.LongArrayList;
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
@@ -106,8 +109,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
         }
         return true;
     }
-    
-     //Parse scan index at the bottom of mzXML file
+
+    //Parse scan index at the bottom of mzXML file
     private void ParseIndex() throws FileNotFoundException, IOException {
         TotalScan = 0;
         ScanIndex = new TreeMap<>();
@@ -434,7 +437,7 @@ public final class mzXMLParser  extends SpectrumParserBase{
         
         return MS1WindowScanCollection;
     }
-       
+    static private int step = -1;
     //Parse scans given a list of scan numbers
 //    private List<MzXMLthreadUnit>  ParseScans(ArrayList<Integer> IncludedScans){
     private List<MzXMLthreadUnit>  ParseScans(final IntHashSet IncludedScans){
@@ -442,7 +445,7 @@ public final class mzXMLParser  extends SpectrumParserBase{
          ArrayList<ForkJoinTask<?>> futures = new ArrayList<>();
 //        ExecutorService executorPool = null;
 //        executorPool = Executors.newFixedThreadPool(NoCPUs);
-        final ForkJoinPool fjPool= new ForkJoinPool(NoCPUs);
+        final ForkJoinPool fjp= new ForkJoinPool(NoCPUs);
         Iterator<Entry<Integer, Long>> iter = ScanIndex.entrySet().iterator();        
         Entry<Integer, Long> ent = iter.next();
         long currentIdx = ent.getValue();
@@ -451,7 +454,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
         try{fileHandler = new RandomAccessFile(filename, "r");}
         catch(FileNotFoundException e){throw new RuntimeException(e);}
         byte[] buffer = new byte[1<<10];
-
+        if(step==-1)
+            step=fjp.getParallelism()*32;
         while (iter.hasNext()) {
             ent = iter.next();
             long startposition = currentIdx;
@@ -477,11 +481,16 @@ public final class mzXMLParser  extends SpectrumParserBase{
                     }
                     boolean ReadPeak = true;
                     final MzXMLthreadUnit unit = new MzXMLthreadUnit(xmltext, parameter, datatype, ReadPeak);
-                    futures.add(fjPool.submit(unit));
+                    futures.add(fjp.submit(unit));
                     ScanList.add(unit);
-                    final int step=fjPool.getParallelism() * 0x100;
-                    if ((ScanList.size() % step) == 0)
+
+                    if ((ScanList.size() % step) == 0) {
                         futures.get(futures.size()-step).get();
+                        if (iter.hasNext() && fjp.getActiveThreadCount() < fjp.getParallelism()) {
+                            step *= 2;
+//                            System.out.println("MzXMLthreadUnit: fjp.getActiveThreadCount()\t" + fjp.getActiveThreadCount()+"\t"+step);
+                        }
+                    }
                 } catch (Exception ex) {
                     Logger.getRootLogger().error(ExceptionUtils.getStackTrace(ex));
                 }
@@ -489,8 +498,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
         }
         try {fileHandler.close();}
         catch (IOException ex) {throw new RuntimeException(ex);}
-        fjPool.shutdown();
-        try {fjPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);}
+        fjp.shutdown();
+        try {fjp.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);}
         catch (InterruptedException ex) {throw new RuntimeException(ex);}
 //        for (MzXMLthreadUnit unit : ScanList) {
 //            executorPool.execute(unit);

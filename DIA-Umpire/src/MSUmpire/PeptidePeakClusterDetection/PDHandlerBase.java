@@ -130,7 +130,7 @@ public class PDHandlerBase {
 //            throw new IndexOutOfBoundsException();
         return ret;
     }
-
+    static int step = -1;
     //Detect all m/z trace / peak curves
     protected void FindAllMzTracePeakCurves(ScanCollection scanCollection) throws IOException {
 //        final HashSet<String> IncludedHashMap = new HashSet<>();
@@ -155,7 +155,8 @@ public class PDHandlerBase {
         }
 
         final boolean[] included = new boolean[ia[ia.length-1]];
-
+        if (step == -1)
+            step = fjp.getParallelism() * 32;
         long peakCurvesCount = 0;
         for (int idx = 0; idx < idx_end; idx++) {
             int scanNO = scanCollection.GetScanNoArray(MSlevel).get(idx);
@@ -307,10 +308,10 @@ public class PDHandlerBase {
             }
             /** the if statement below does PeakCurveSmoothing() and ClearRawPeaks()
              */
-            final int step=fjp.getParallelism()*256;
-            if (ftemp.size() == step || idx + 1 == idx_end) {
+            final boolean last_iter = idx + 1 == idx_end;
+            if (ftemp.size() == step || last_iter) {
                 final List<ForkJoinTask<ArrayList<PeakCurve>>> ftemp_sublist_view = 
-                        idx + 1 == idx_end?
+                        last_iter?
                         ftemp
                         : ftemp.subList(0, step/2);
                 for(final Future<ArrayList<PeakCurve>> f : ftemp_sublist_view){
@@ -318,6 +319,10 @@ public class PDHandlerBase {
                     catch(InterruptedException|ExecutionException e){throw new RuntimeException(e);}
                 }
                 ftemp_sublist_view.clear();
+                if(!last_iter && fjp.getActiveThreadCount()<fjp.getParallelism()){
+//                    System.out.println("PeakCurveSmoothingUnit: fjp.getActiveThreadCount()\t"+fjp.getActiveThreadCount()+"\t"+step);
+                    step *= 2;
+                }
             }
         }
         assert ftemp.isEmpty();
@@ -408,7 +413,8 @@ public class PDHandlerBase {
         }
         reader.close();
     }
-    
+
+    static private int step_pccc=-1;
     //Group peak curves based on peak profile correlation of isotope peaks
     protected void PeakCurveCorrClustering(XYData mzRange) throws IOException{
         Logger.getRootLogger().info("Grouping isotopic peak curves........");
@@ -416,7 +422,7 @@ public class PDHandlerBase {
         LCMSPeakBase.PeakClusters = new ArrayList<>();
         
         //Thread pool
-        final ForkJoinPool executorPool = new ForkJoinPool(NoCPUs);
+        final ForkJoinPool fjp = new ForkJoinPool(NoCPUs);
 //        ArrayList<PeakCurveClusteringCorrKDtree> ResultList = new ArrayList<>();
         final ArrayList<ForkJoinTask<ArrayList<PeakCluster>>> ftemp = new ArrayList<>();
         final int end_idx=LCMSPeakBase.UnSortedPeakCurves.size();
@@ -429,26 +435,32 @@ public class PDHandlerBase {
                 //Create a thread unit for doing isotope clustering given a peak curve as the monoisotope peak
                 PeakCurveClusteringCorrKDtree unit = new PeakCurveClusteringCorrKDtree(Peakcurve, LCMSPeakBase.GetPeakCurveSearchTree(), parameter, IsotopePatternMap, LCMSPeakBase.StartCharge, LCMSPeakBase.EndCharge, LCMSPeakBase.MaxNoPeakCluster, LCMSPeakBase.MinNoPeakCluster);
 //                ResultList.add(unit);
-                ftemp.add(executorPool.submit(unit));
+                ftemp.add(fjp.submit(unit));
             }
-            final int step=executorPool.getParallelism()*256;
-            if(ftemp.size()==step || i+1==end_idx){
+            if(step_pccc==-1)
+                step_pccc=fjp.getParallelism()*32;
+            final boolean last_iter = i + 1 == end_idx;
+            if(ftemp.size()==step_pccc || last_iter){
                 final List<ForkJoinTask<ArrayList<PeakCluster>>> ftemp_sublist_view=
-                        i+1==end_idx?
+                        last_iter?
                         ftemp:
-                        ftemp.subList(0, step/2);
+                        ftemp.subList(0, step_pccc/2);
                 for (final ForkJoinTask<ArrayList<PeakCluster>> fut : ftemp_sublist_view)
                     try {resultClusters.addAll(fut.get());}
                     catch (InterruptedException | ExecutionException ex) {throw new RuntimeException(ex);}
                 ftemp_sublist_view.clear();
+                if(!last_iter && fjp.getActiveThreadCount()<fjp.getParallelism()){
+//                    System.out.println("PeakCurveSmoothingUnit: fjp.getActiveThreadCount()\t"+fjp.getActiveThreadCount()+"\t"+step_pccc);
+                    step_pccc *= 2;
+                }
             }
         }
 
         assert ftemp.isEmpty():"temp storage for futures should be empty by end of loop";
-        executorPool.shutdown();
+        fjp.shutdown();
 
         try {
-            executorPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            fjp.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Logger.getRootLogger().info("interrupted..");
         }

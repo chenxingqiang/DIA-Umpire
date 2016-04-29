@@ -48,6 +48,7 @@ public class PeakCurveSmoothingUnit implements Callable<ArrayList<PeakCurve>> {
             curve.DoBspline();
             curve.DetectPeakRegion();
             ResultCurves = curve.SeparatePeakByRegion(parameter.SNThreshold);
+            curve=null;
         }
         else{
             curve.DoBspline();
@@ -63,7 +64,7 @@ public class PeakCurveSmoothingUnit implements Callable<ArrayList<PeakCurve>> {
             peakCurve.EndRT();
             peakCurve.ReleaseRawPeak();
         }
-        curve=null;
+
         return ResultCurves;
     }
 }
