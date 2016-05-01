@@ -26,10 +26,8 @@ import MSUmpire.BaseDataStructure.XYZData;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.PriorityQueue;
 import org.eclipse.collections.impl.list.mutable.primitive.FloatArrayList;
-import org.eclipse.collections.impl.set.mutable.primitive.ByteHashSet;
 
 
 /**
@@ -92,7 +90,7 @@ public class PeakCurve implements Serializable  {
     public float ConflictCorr = 0f;
     public boolean Grouped = false;
 //    public transient HashSet<Integer> ChargeGrouped=new HashSet<>();
-    public transient ByteHashSet ChargeGrouped=new ByteHashSet();
+    public transient short ChargeGrouped=0;
     public float MzVar = -1f;
     public transient SortedRidgeCollectionClass PeakRidgeList;
     public transient WaveletMassDetector waveletMassDetector;

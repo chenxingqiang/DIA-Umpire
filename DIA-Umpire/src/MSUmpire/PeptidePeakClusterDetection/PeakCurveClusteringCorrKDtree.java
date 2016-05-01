@@ -22,6 +22,7 @@ package MSUmpire.PeptidePeakClusterDetection;
 import MSUmpire.BaseDataStructure.InstrumentParameter;
 import MSUmpire.BaseDataStructure.XYData;
 import MSUmpire.MathPackage.MassDefect;
+import MSUmpire.PeakDataStructure.IonChargeHashSet;
 import MSUmpire.PeakDataStructure.PeakCluster;
 import MSUmpire.PeakDataStructure.PeakCurve;
 import MSUmpire.PeakDataStructure.SortedCurveCollectionMZ;
@@ -216,7 +217,8 @@ public class PeakCurveClusteringCorrKDtree implements Callable<ArrayList<PeakClu
                         for (int i = 1; i < peakCluster.IsoPeaksCurves.length; i++) {
                             PeakCurve peak = peakCluster.IsoPeaksCurves[i];
                             if (peak != null && peakCluster.Corrs[i - 1] > parameter.RemoveGroupedPeaksCorr && peakCluster.OverlapRT[i - 1] > parameter.RemoveGroupedPeaksRTOverlap) {
-                                peak.ChargeGrouped.add((byte) charge);
+//                                peak.ChargeGrouped.add(charge);
+                                peak.ChargeGrouped = IonChargeHashSet.add(peak.ChargeGrouped,charge);
                             }
                         }
                     }

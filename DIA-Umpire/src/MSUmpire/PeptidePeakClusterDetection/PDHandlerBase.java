@@ -25,6 +25,7 @@ import MSUmpire.BaseDataStructure.ScanData;
 import MSUmpire.BaseDataStructure.XYData;
 import MSUmpire.BaseDataStructure.XYPointCollection;
 import MSUmpire.LCMSPeakStructure.LCMSPeakBase;
+import MSUmpire.PeakDataStructure.IonChargeHashSet;
 import MSUmpire.PeakDataStructure.PeakCluster;
 import MSUmpire.PeakDataStructure.PeakCurve;
 import java.io.*;
@@ -467,7 +468,10 @@ public class PDHandlerBase {
 
         for (final PeakCluster peakCluster : resultClusters) {
             //Check if the monoistope peak of cluster has been grouped in other isotope cluster, if yes, remove the peak cluster
-            if (!parameter.RemoveGroupedPeaks || !peakCluster.MonoIsotopePeak.ChargeGrouped.contains((byte) peakCluster.Charge)) {
+            if (!parameter.RemoveGroupedPeaks ||
+//                    !peakCluster.MonoIsotopePeak.ChargeGrouped.contains(peakCluster.Charge)
+                    !IonChargeHashSet.contains(peakCluster.MonoIsotopePeak.ChargeGrouped, peakCluster.Charge)
+                    ) {
                 peakCluster.Index = LCMSPeakBase.PeakClusters.size() + 1;
                 peakCluster.GetConflictCorr();
                 LCMSPeakBase.PeakClusters.add(peakCluster);
