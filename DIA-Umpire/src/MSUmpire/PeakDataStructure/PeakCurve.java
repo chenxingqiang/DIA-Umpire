@@ -158,7 +158,6 @@ public class PeakCurve implements Serializable  {
 
     //Detect peak region using CWT based on smoothed peak signals
     public void DetectPeakRegion() {
-        ArrayList<XYData> PeakArrayList = new ArrayList<>();
         PeakRidgeList = new SortedRidgeCollectionClass();
 //        PeakRegionList = new ArrayList<>();
         PeakRegionList = new XYZDataList();
@@ -166,8 +165,13 @@ public class PeakCurve implements Serializable  {
         if (RTWidth() * parameter.NoPeakPerMin < 1) {
             return;
         }
+
+//        ArrayList<XYData> PeakArrayList = new ArrayList<>();
+        final float[] PeakArrayList = new float[SmoothData.PointCount()*2];
         for (int i = 0; i < SmoothData.PointCount(); i++) {
-            PeakArrayList.add(new XYData(SmoothData.Data.get(i).getX(), SmoothData.Data.get(i).getY()));
+//            PeakArrayList.add(new XYData(SmoothData.Data.get(i).getX(), SmoothData.Data.get(i).getY()));
+            PeakArrayList[2*i]=SmoothData.Data.get(i).getX();
+            PeakArrayList[2*i+1]=SmoothData.Data.get(i).getY();
         }
         //Start CWT process
         waveletMassDetector = new WaveletMassDetector(parameter, PeakArrayList, (int) (RTWidth() * parameter.NoPeakPerMin));
@@ -175,7 +179,7 @@ public class PeakCurve implements Serializable  {
 
         int maxScale = waveletMassDetector.PeakRidge.length - 1;
 
-        float[] DisMatrixF = new float[PeakRidgeList.size()*waveletMassDetector.PeakRidge[maxScale].size()*2];
+        float[] DisMatrixF = null;//new float[PeakRidgeList.size()*waveletMassDetector.PeakRidge[maxScale].size()*2];
         //trace peak ridge from maximum wavelet scale to minimum scale
         for (int i = maxScale; i >= 0; i--) {
             //Get peak ridge list (maximum RT points given a CWT scale
@@ -193,8 +197,8 @@ public class PeakCurve implements Serializable  {
             final int r=PeakRidgeList.size(), c=PeakRidgeArray.size();
 //            float[][] DisMatrixF = new float[PeakRidgeList.size()][PeakRidgeArray.size()];
 //            final float[] DisMatrixF = new float[r*c];
-            if(r*c>DisMatrixF.length)
-                DisMatrixF = new float[Math.max(r*c,DisMatrixF.length*2)];
+            if(DisMatrixF==null || r*c>DisMatrixF.length)
+                DisMatrixF = new float[r*c*2];
 
             for (int k = 0; k < PeakRidgeList.size(); k++) {///For each existing peak ridge line
                 for (int l = 0; l < PeakRidgeArray.size(); l++) {
@@ -244,9 +248,8 @@ public class PeakCurve implements Serializable  {
                 }
             }
 
-            for (XYData removeridge : RemovedRidgeList) {
-                PeakRidgeArray.remove(removeridge);
-            }
+            PeakRidgeArray.removeAll(RemovedRidgeList);
+
             RemovedRidgeList.clear();
             RemovedRidgeList = null;
             ArrayList<PeakRidge> removelist = new ArrayList<>();
@@ -362,8 +365,6 @@ public class PeakCurve implements Serializable  {
             NoRidgeRegion.add(RidgeRTs);
         }
         waveletMassDetector = null;
-        PeakArrayList.clear();
-        PeakArrayList = null;
         PeakRidgeList.clear();
         PeakRidgeList = null;
     }
@@ -624,6 +625,9 @@ public class PeakCurve implements Serializable  {
     public XYZDataList GetPeakList() {
         return PeakList;
     }
+    public void nullifyPeakList() {
+        this.PeakList=null;
+    }
 
     public XYPointCollection GetSmoothedList() {
         return SmoothData;
@@ -640,7 +644,7 @@ public class PeakCurve implements Serializable  {
         this.SmoothData = null;
         this.PeakRegionList = null;
         this.PeakRidgeList = null;
-        this.waveletMassDetector.DataPoint.clear();
+//        this.waveletMassDetector.DataPoint.clear();
         this.waveletMassDetector = null;
     }
 

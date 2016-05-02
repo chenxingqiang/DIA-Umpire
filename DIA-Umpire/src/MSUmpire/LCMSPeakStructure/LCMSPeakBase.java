@@ -90,7 +90,8 @@ public class LCMSPeakBase {
 
     public void ClearRawPeaks() {
         for (PeakCurve peakCurve : UnSortedPeakCurves) {
-            peakCurve.GetPeakList().clear();
+//            peakCurve.GetPeakList().clear();
+            peakCurve.nullifyPeakList();
         }
     }
      

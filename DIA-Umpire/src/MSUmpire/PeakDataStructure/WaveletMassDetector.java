@@ -44,12 +44,14 @@ public class WaveletMassDetector implements Serializable{
     private int WAVELET_ESR = 5;
     static boolean waveletDebug = false;
     private InstrumentParameter parameter;
-    public ArrayList<XYData> DataPoint;
+//    public ArrayList<XYData> DataPoint;
+    public final float[] DataPoint;
     double waveletWindow = 0.3;
     private double[] MEXHAT;
     double NPOINTS_half;
 
-    public WaveletMassDetector(InstrumentParameter parameter, ArrayList<XYData> DataPoint, int NoPoints) {
+//    public WaveletMassDetector(InstrumentParameter parameter, ArrayList<XYData> DataPoint, int NoPoints) {
+    public WaveletMassDetector(InstrumentParameter parameter, final float[] DataPoint, int NoPoints) {
         this.parameter = parameter;
         this.DataPoint = DataPoint;
         this.NPOINTS = NoPoints;
@@ -80,58 +82,85 @@ public class WaveletMassDetector implements Serializable{
         //"Number of wavelet'scale (coeficients) to use in m/z peak detection"
         //"Wavelet window size (%)",
         //"Size in % of wavelet window to apply in m/z peak detection");        
-        int maxscale = (int) (Math.max(Math.min((DataPoint.get(DataPoint.size() - 1).getX() - DataPoint.get(0).getX()), parameter.MaxCurveRTRange), 0.5f) * parameter.NoPeakPerMin / (WAVELET_ESR + WAVELET_ESR));
+//        int maxscale = (int) (Math.max(Math.min((DataPoint.get(DataPoint.size() - 1).getX() - DataPoint.get(0).getX()), parameter.MaxCurveRTRange), 0.5f) * parameter.NoPeakPerMin / (WAVELET_ESR + WAVELET_ESR));
+        int maxscale = (int) (Math.max(Math.min((DataPoint[2*(DataPoint.length/2 - 1)] - DataPoint[0]), parameter.MaxCurveRTRange), 0.5f) * parameter.NoPeakPerMin / (WAVELET_ESR + WAVELET_ESR));
 
         //waveletCWT = new ArrayList[15];
         PeakRidge = new ArrayList[maxscale];
         //XYData maxint = new XYData(0f, 0f);
         for (int scaleLevel = 0; scaleLevel < maxscale; scaleLevel++) {
-            ArrayList<XYData> wavelet = performCWT(scaleLevel * 2 + 5);
+//            ArrayList<XYData> wavelet = performCWT(scaleLevel * 2 + 5);
+            final float[] wavelet = performCWT(scaleLevel * 2 + 5);
             PeakRidge[scaleLevel] = new ArrayList<>();
             //waveletCWT[scaleLevel] = wavelet;
-            XYData lastpt = wavelet.get(0);
-            XYData localmax = null;
-            XYData startpt = wavelet.get(0);
+//            XYData lastpt = wavelet.get(0);
+            int lastptidx = 0;
+//            XYData localmax = null;
+            int localmaxidx = -1;
+//            XYData startpt = wavelet.get(0);
+            int startptidx = 0;
 
             boolean increasing = false;
             boolean decreasing = false;
-            XYData localmaxint = null;
+//            XYData localmaxint = null;
+            int localmaxintidx = -1;
 
-            for (int cwtidx = 1; cwtidx < wavelet.size(); cwtidx++) {
-                XYData CurrentPoint = wavelet.get(cwtidx);
-                if (CurrentPoint.getY() > lastpt.getY()) {//the peak is increasing
+//            for (int cwtidx = 1; cwtidx < wavelet.size(); cwtidx++) {
+            for (int cwtidx = 1; cwtidx < wavelet.length/2; cwtidx++) {
+//                XYData CurrentPoint = wavelet.get(cwtidx);
+                final float CurrentPointY = wavelet[2*cwtidx+1],
+                        lastptY=wavelet[2*lastptidx+1],
+                        startptY=wavelet[2*startptidx+1],
+                        localmaxY=localmaxidx==-1?Float.NaN:wavelet[2*localmaxidx+1];
+//                if (CurrentPoint.getY() > lastpt.getY()) {//the peak is increasing
+                if (CurrentPointY> lastptY) {//the peak is increasing
                     if (decreasing) {//first increasing point, last point was a possible local minimum
                         //check if the peak was symetric
-                        if (localmax != null && (lastpt.getY() <= startpt.getY() || Math.abs(lastpt.getY() - startpt.getY()) / localmax.getY() < parameter.SymThreshold)) {
-                            PeakRidge[scaleLevel].add(localmax);
-                            localmax = CurrentPoint;
-                            startpt = lastpt;
+//                        if (localmax != null && (lastpt.getY() <= startpt.getY() || Math.abs(lastpt.getY() - startpt.getY()) / localmax.getY() < parameter.SymThreshold)) {
+                        if (localmaxidx != -1 && (lastptY<= startptY|| Math.abs(lastptY- startptY) / localmaxY < parameter.SymThreshold)) {
+//                            PeakRidge[scaleLevel].add(localmax);
+                            PeakRidge[scaleLevel].add(new XYData(wavelet[2*localmaxidx],wavelet[2*localmaxidx+1]));
+//                            localmax = CurrentPoint;
+                            localmaxidx = cwtidx;
+//                            startpt = lastpt;
+                            startptidx = lastptidx;
                         }
                     }
                     increasing = true;
                     decreasing = false;
-                } else if (CurrentPoint.getY() < lastpt.getY()) {//peak decreasing
+//                } else if (CurrentPoint.getY() < lastpt.getY()) {//peak decreasing
+                } else if (CurrentPointY < lastptY) {//peak decreasing
                     if (increasing) {//first point decreasing, last point was a possible local maximum
-                        if (localmax == null || localmax.getY() < lastpt.getY()) {
-                            localmax = lastpt;
+//                        if (localmax == null || localmax.getY() < lastpt.getY()) {
+                        if (localmaxidx == -1 || localmaxY < lastptY) {
+//                            localmax = lastpt;
+                            localmaxidx = lastptidx;
                         }
                     }
                     decreasing = true;
                     increasing = false;
                 }
-                lastpt = CurrentPoint;
-                if (localmaxint == null || CurrentPoint.getY() > localmaxint.getY()) {
-                    localmaxint = CurrentPoint;
+//                lastpt = CurrentPoint;
+                lastptidx = cwtidx;
+                final float localmaxintY=localmaxintidx == -1 ? Float.NaN : wavelet[2*localmaxintidx+1];
+//                if (localmaxint == null || CurrentPoint.getY() > localmaxint.getY()) {
+                if (localmaxintidx == -1 || CurrentPointY > localmaxintY) {
+//                    localmaxint = CurrentPoint;
+                    localmaxintidx = cwtidx;
                 }
-                if (cwtidx == wavelet.size() - 1 && decreasing) {
-                    if (localmax != null && (CurrentPoint.getY() <= startpt.getY() || Math.abs(CurrentPoint.getY() - startpt.getY()) / localmax.getY() < parameter.SymThreshold)) {
+//                if (cwtidx == wavelet.size() - 1 && decreasing) {
+                if (cwtidx == wavelet.length/2 - 1 && decreasing) {
+//                    if (localmax != null && (CurrentPoint.getY() <= startpt.getY() || Math.abs(CurrentPoint.getY() - startpt.getY()) / localmax.getY() < parameter.SymThreshold)) {
+//                    final float startptY=wavelet[2*startptidx+1];
+                    if (localmaxidx != -1 && (CurrentPointY <= startptY || Math.abs(CurrentPointY - startptY) / localmaxY < parameter.SymThreshold)) {
+                        final XYData localmax = new XYData(wavelet[2*localmaxidx], wavelet[2*localmaxidx+1]);
                         PeakRidge[scaleLevel].add(localmax);
                     }
                 }
             }
 
             if (!waveletDebug) {
-                wavelet.clear();
+//                wavelet.clear();
                 //wavelet = null;
             }
         }
@@ -142,9 +171,12 @@ public class WaveletMassDetector implements Serializable{
      *
      *
      */
-    private ArrayList<XYData> performCWT(int scaleLevel) {
-        int length = DataPoint.size();
-        ArrayList<XYData> cwtDataPoints = new ArrayList<XYData>();
+//    private ArrayList<XYData> performCWT(int scaleLevel) {
+    private float[] performCWT(int scaleLevel) {
+//        int length = DataPoint.size();
+        int length = DataPoint.length/2;
+//        ArrayList<XYData> cwtDataPoints = new ArrayList<XYData>();
+        final float[] cwtDataPoints = new float[length*2];
 
         int a_esl = scaleLevel * WAVELET_ESL;
         int a_esr = scaleLevel * WAVELET_ESR;
@@ -177,14 +209,17 @@ public class WaveletMassDetector implements Serializable{
 //                if(i<0 || ind<0){
 //                    System.out.print("");
 //                }
-                intensity += DataPoint.get(i).getY() * MEXHAT[ind];
+//                intensity += DataPoint.get(i).getY() * MEXHAT[ind];
+                intensity += DataPoint[2*i+1] * MEXHAT[ind];
             }
             intensity /= sqrtScaleLevel;
             // Eliminate the negative part of the wavelet map
             if (intensity < 0) {
                 intensity = 0;
             }
-            cwtDataPoints.add(new XYData(DataPoint.get(dx).getX(), intensity));
+//            cwtDataPoints.add(new XYData(DataPoint.get(dx).getX(), intensity));
+            cwtDataPoints[2*dx]= DataPoint[2*dx];
+            cwtDataPoints[2*dx+1]= intensity;
         }
         return cwtDataPoints;
     }
