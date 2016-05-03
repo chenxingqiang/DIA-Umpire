@@ -193,7 +193,7 @@ public abstract class SpectrumParserBase {
             //i.printStackTrace();
             Logger.getRootLogger().debug("ScanRTFS serialization file failed");
             //Logger.getRootLogger().error(ExceptionUtils.getStackTrace(ex));
-            return false;
+            throw new RuntimeException(ex);
         }
 
         try {

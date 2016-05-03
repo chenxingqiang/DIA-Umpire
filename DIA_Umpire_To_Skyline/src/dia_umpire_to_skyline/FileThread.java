@@ -59,7 +59,7 @@ public class FileThread implements Runnable{
             if (!new File(FilenameUtils.getFullPath(DiaFile.Filename) + DiaFile.GetQ1Name() + ".mzXML").exists()
                     | !new File(FilenameUtils.getFullPath(DiaFile.Filename) + DiaFile.GetQ2Name() + ".mzXML").exists()
                     | !new File(FilenameUtils.getFullPath(DiaFile.Filename) + DiaFile.GetQ3Name() + ".mzXML").exists()) {
-                return;
+                throw new RuntimeException();
             }
             Logger.getRootLogger().info("=================================================================================================");
             Logger.getRootLogger().info("Processing " + mzXMLFile);
