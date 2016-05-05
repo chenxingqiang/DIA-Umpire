@@ -20,11 +20,13 @@
 package MSUmpire.PSMDataStructure;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Create a InputStream class from a text file
@@ -32,7 +34,7 @@ import java.io.OutputStream;
  */
 public class InputStreamToFile {
 
-    public File GetFile(InputStream inputStream, String tmpname) throws FileNotFoundException, IOException {
+    public File GetFile__old(InputStream inputStream, String tmpname) throws IOException {
 
         File Path=new File(getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
         File file = new File(Path.getParent()+ "/"+tmpname);
@@ -46,4 +48,12 @@ public class InputStreamToFile {
         }
         return file;
     }
+
+
+    public File GetFile(InputStream inputStream, String tmpname) throws IOException {
+        final Path path = Paths.get(tmpname).toAbsolutePath();
+        Files.copy(inputStream, path);
+        return path.toFile();
+    }
+
 }
