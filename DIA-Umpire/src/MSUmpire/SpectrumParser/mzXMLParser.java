@@ -25,6 +25,8 @@ import MSUmpire.BaseDataStructure.SpectralDataType;
 import MSUmpire.BaseDataStructure.XYData;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
@@ -36,6 +38,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
 import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
+import org.eclipse.collections.impl.list.mutable.primitive.LongArrayList;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
 
@@ -57,7 +60,8 @@ public final class mzXMLParser  extends SpectrumParserBase{
     //Parser elution time index and scan index and save them as binary files
     private void ReadElutionAndScanIndex() throws Exception {
         if (!FSScanPosRead()) {
-            ParseIndex();
+            InferOffsets();
+//            ParseIndex();
             WriteIndexSerialization();
         }
         if (!FSElutionIndexRead()) {
@@ -105,6 +109,22 @@ public final class mzXMLParser  extends SpectrumParserBase{
             return false;
         }
         return true;
+    }
+
+    /**
+     * Infer scan tag offsets.
+     * @throws IOException
+     */
+    private void InferOffsets() throws IOException {
+        this.ScanIndex = new TreeMap<>();
+        try (final InputStream is = Files.newInputStream(Paths.get(this.filename));) {
+            final LongArrayList offsets = Infer_mzXML_offsets.infer_mzXML_scanno(is);
+            this.TotalScan = offsets.size();
+            for (int i=0;i<offsets.size()-1;++i){
+                this.ScanIndex.put(i+1,offsets.get(i));
+            }
+            this.ScanIndex.put(Integer.MAX_VALUE, offsets.getLast());
+        }
     }
 
     //Parse scan index at the bottom of mzXML file
