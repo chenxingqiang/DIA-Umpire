@@ -749,7 +749,7 @@ public class DIAPack {
         String mgffile = GetSkylineFolder() + GetForLibQ1Name() + ".mgf";
         FileWriter mgfWriter = new FileWriter(mgffile, false);
 
-        for (int ScanNo = 1; ScanNo <= ScanClusterMap_Q1.size(); ScanNo++) {
+        for (final int ScanNo : new java.util.TreeSet<>(ScanClusterMap_Q1.keySet())) {
             int ClusterIndex = ScanClusterMap_Q1.get(ScanNo);
             XYPointCollection Scan = new XYPointCollection();
             PseudoMSMSProcessing mSMSProcessing = null;
@@ -777,7 +777,7 @@ public class DIAPack {
         String mgffile2 = GetSkylineFolder() + GetForLibQ2Name() + ".mgf";
         FileWriter mgfWriter2 = new FileWriter(mgffile2, false);
 
-        for (int ScanNo = 1; ScanNo <= ScanClusterMap_Q2.size(); ScanNo++) {
+        for (final int ScanNo: new java.util.TreeSet<>(ScanClusterMap_Q2.keySet())) {
             int ClusterIndex = ScanClusterMap_Q2.get(ScanNo);
             XYPointCollection Scan = new XYPointCollection();
             PseudoMSMSProcessing mSMSProcessing = null;
@@ -807,7 +807,7 @@ public class DIAPack {
         FileWriter mgfWriter3 = new FileWriter(mgffile3, false);
         mzXMLParser Q3mzxml = new mzXMLParser(FilenameUtils.getFullPath(Filename) + GetQ3Name() + ".mzXML", parameter, SpectralDataType.DataType.DDA, null, NoCPUs);
         Q3mzxml.GetAllScanCollectionByMSLabel(false, true, false, false);
-        for (int ScanNo = 1; ScanNo <= ScanClusterMap_Q3.size(); ScanNo++) {
+        for (final int ScanNo: new java.util.TreeSet<>(ScanClusterMap_Q3.keySet())) {
             String key = ScanClusterMap_Q3.get(ScanNo);
             XYPointCollection Scan = new XYPointCollection();
             PseudoMSMSProcessing mSMSProcessing = UnfragScanList.get(key);
