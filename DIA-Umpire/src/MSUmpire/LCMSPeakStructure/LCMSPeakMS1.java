@@ -388,9 +388,9 @@ public class LCMSPeakMS1 extends LCMSPeakBase {
         Masscalibrationfunction = loessInterpolator.interpolate(x, y);
         XYSeries smoothline = new XYSeries("Loess Regression");
 
-        double xvalue = series.getMinX();
+        double xvalue = x[0];
 
-        while (xvalue < series.getMaxX()) {
+        while (xvalue < x[x.length-1]) {
             smoothline.add(xvalue, Masscalibrationfunction.value(xvalue));
             xvalue += 0.05d;
         }
