@@ -116,11 +116,11 @@ public class DIA_Umpire_To_Skyline {
             }
 
             ExecutorService executorPool = null;
-            executorPool = Executors.newFixedThreadPool(3);
+            executorPool = Executors.newFixedThreadPool(NoCPUs);
 
             for (File fileEntry : AssignFiles.values()) {
                 String mzXMLFile = fileEntry.getAbsolutePath();
-                FileThread thread = new FileThread(mzXMLFile, NoCPUs,msconvertpath);
+                FileThread thread = new FileThread(mzXMLFile, 1,msconvertpath);
                 executorPool.execute(thread);
             }
             executorPool.shutdown();
