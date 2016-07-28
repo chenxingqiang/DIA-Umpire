@@ -27,32 +27,18 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Create a InputStream class from a text file
+ *
  * @author Chih-Chiang Tsou <chihchiang.tsou@gmail.com>
  */
 public class InputStreamToFile {
 
-    public File GetFile__old(InputStream inputStream, String tmpname) throws IOException {
-
-        File Path=new File(getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
-        File file = new File(Path.getParent()+ "/"+tmpname);
-
-        OutputStream outputStream = new FileOutputStream(file);
-        int read = 0;
-        byte[] bytes = new byte[1024];
-
-        while ((read = inputStream.read(bytes)) != -1) {
-            outputStream.write(bytes, 0, read);
-        }
-        return file;
-    }
-
-
     public File GetFile(InputStream inputStream, String tmpname) throws IOException {
         final Path path = Paths.get(tmpname).toAbsolutePath();
-        Files.copy(inputStream, path);
+        Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
         return path.toFile();
     }
 
