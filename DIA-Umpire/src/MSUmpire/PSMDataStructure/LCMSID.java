@@ -519,7 +519,7 @@ public class LCMSID implements Serializable {
                 positive++;
                 //System.out.println(protein.getAccNo()+"-"+ protein.ProteinGroup);
             }
-            if (protein.MaxIniProb < sortedlist.get(i - 1).MaxIniProb && (float) negative / (float) (positive) >= ProteinFDR) {
+            if (protein.MaxIniProb > sortedlist.get(i + 1).MaxIniProb && (float) negative / (float) (positive) >= ProteinFDR) {
                 ProteinProbThreshold = protein.MaxIniProb;
                 Logger.getRootLogger().info("Protein maxiniprob threshold=" + ProteinProbThreshold + " Estimated raw protein FDR:" + (float) negative / (float) (positive) + "(Target/Decoy)=(" + positive + "/" + negative + ")");
                 return;
