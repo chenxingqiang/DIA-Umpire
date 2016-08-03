@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
 
@@ -87,13 +88,14 @@ public class ExportTable {
                     ProtID protein = IDsummary.ProteinList.get(key);
                     for (PepIonID pep : protein.PeptideID.values()) {
                         for (FragmentPeak frag : pep.FragmentPeaks) {
-                            if (!ProteinFragMap.containsKey(key + ";" + pep.GetKey() + ";" + frag.IonType)) {
-                                ProteinFragMap.put(key + ";" + pep.GetKey() + ";" + frag.IonType, frag.FragMZ);
-                            }
+                            final String mapkey =
+                                    // key + ";" + pep.GetKey() + ";" + frag.IonType;
+                                    key + ";" + pep.GetKey() + ";" + frag.IonType + ";+" + frag.Charge;
+                            ProteinFragMap.putIfAbsent(mapkey, frag.FragMZ);
                             frag.Prob1 = pep.MaxProbability;
                             frag.Prob2 = pep.TargetedProbability();
                             frag.RT = pep.PeakRT;
-                            FragMap.put(key + ";" + pep.GetKey() + ";" + frag.IonType, frag);
+                            FragMap.put(mapkey, frag);
                         }
                     }
                 }
@@ -134,8 +136,9 @@ public class ExportTable {
             fragWriter.write(file + "_RT\t" + file + "_Spec_Centric_Prob\t" + file + "_Pep_Centric_Prob\t" + file + "_Intensity\t" + file + "_Corr\t" + file + "_PPM\t");
         }
         fragWriter.write("\n");
-        for (String key : ProteinFragMap.keySet()) {
-            fragWriter.write(key + "\t" + key.split(";")[0] + "\t" + key.split(";")[1] + "\t" + key.split(";")[2] + "\t" + ProteinFragMap.get(key) + "\t");
+          for (final Map.Entry<String, Float> ent : new java.util.TreeMap<>(ProteinFragMap).entrySet()) {
+            final String key = ent.getKey();
+            fragWriter.write(key + "\t" + key.split(";")[0] + "\t" + key.split(";")[1] + "\t" + key.split(";")[2] + "\t" + ent.getValue() + "\t");
             for (LCMSID IDSummary : FileList) {
                 if (IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).containsKey(key)) {
                     FragmentPeak fragmentPeak = IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).get(key);
