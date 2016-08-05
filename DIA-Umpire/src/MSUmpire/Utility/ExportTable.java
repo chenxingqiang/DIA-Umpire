@@ -344,10 +344,10 @@ public class ExportTable {
     }
 
     private void GetFragments(PepIonID pep, HashMap<String, FragmentPeak> FragMap) {
+        Logger.getRootLogger().info("MSUmpire.Utility.ExportTable.GetFragments()");
+        System.exit(123);// never executed
         for (FragmentPeak frag : pep.FragmentPeaks) {
-            if (!ProteinFragMap.containsKey(pep.GetKey() + ";" + frag.IonType)) {
-                ProteinFragMap.put(pep.GetKey() + ";" + frag.IonType, frag.FragMZ);
-            }
+            ProteinFragMap.putIfAbsent(pep.GetKey() + ";" + frag.IonType, frag.FragMZ);
             frag.Prob1 = pep.MaxProbability;
             frag.Prob2 = pep.TargetedProbability();
             frag.RT = pep.PeakRT;
