@@ -968,9 +968,17 @@ public class LCMSID implements Serializable {
 
     
     public void AddPeptideID(PepIonID pepID) {
-        if (!PepIonList.containsKey(pepID.GetKey())) {
-            pepID.Index = PepIonList.size();
-            PepIonList.put(pepID.GetKey(), pepID);
+//        if (!PepIonList.containsKey(pepID.GetKey())) {
+//            pepID.Index = PepIonList.size();
+//            PepIonList.put(pepID.GetKey(), pepID);
+//        }
+        {
+            final PepIonID pep = PepIonList.get(pepID.GetKey());
+            if (pep == null || pep.MaxProbability < pepID.MaxProbability) {
+                // if not in map or a higher probability is found
+                PepIonList.put(pepID.GetKey(), pepID);
+                pepID.Index = PepIonList.size() - 1;
+            }
         }
         for (PSM psm : pepID.GetPSMList()) {
             PSMList.put(psm.SpecNumber, psm);
