@@ -91,7 +91,9 @@ public class ExportTable {
                             final String mapkey =
                                     // key + ";" + pep.GetKey() + ";" + frag.IonType;
                                     key + ";" + pep.GetKey() + ";" + frag.IonType + ";+" + frag.Charge;
-                            ProteinFragMap.putIfAbsent(mapkey, frag.FragMZ);
+//                            ProteinFragMap.putIfAbsent(mapkey, frag.FragMZ);// needs Java 8
+                            if(!ProteinFragMap.containsKey(mapkey))
+                                ProteinFragMap.put(mapkey, frag.FragMZ);
                             frag.Prob1 = pep.MaxProbability;
                             frag.Prob2 = pep.TargetedProbability();
                             frag.RT = pep.PeakRT;
