@@ -94,11 +94,13 @@ public class PTMManager {
     
     public static ArrayList<ModificationMatch> TranslateModificationString(String ModificationString) {        
         ArrayList<ModificationMatch> modlist = new ArrayList<>();
+        final java.util.regex.Pattern p = java.util.regex.Pattern.compile("(.+?)\\((\\d+)\\)");
         if (ModificationString != null && !"".equals(ModificationString)) {
-            String[] Mods = ModificationString.split(";");
-            for (String mod : Mods) {
-                String ptmstring = mod.substring(0, mod.indexOf("("));
-                int site = Integer.parseInt(mod.substring(mod.indexOf("(") + 1, mod.indexOf(")")));
+            for (final String mod : ModificationString.split(";")) {
+                final java.util.regex.Matcher m = p.matcher(mod);
+                m.lookingAt();
+                final String ptmstring = m.group(1);
+                final int site = Integer.parseInt(m.group(2));
                 modlist.add(new ModificationMatch(ptmstring, true, site));
             }
         }
