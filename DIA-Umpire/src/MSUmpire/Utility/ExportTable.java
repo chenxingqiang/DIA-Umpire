@@ -108,6 +108,7 @@ public class ExportTable {
 
         //ProteinSummary/////////////
         proWriter.write("Protein Key\t");
+        proWriter.write("Selected_peptides\t");
         for (LCMSID IDSummary : FileList) {
             NOWriter.write(FilenameUtils.getBaseName(IDSummary.mzXMLFileName) + "\t" + IDSummary.ProteinList.size() + "\t" + IDSummary.GetPepIonList().size() + "\t" + IDSummary.GetMappedPepIonList().size() + "\t" + IDSummary.AssignedPepIonList.size() + "\n");
             String file = FilenameUtils.getBaseName(IDSummary.mzXMLFileName);
@@ -119,6 +120,14 @@ public class ExportTable {
         if (CombineProtID != null) {
             for (String key : CombineProtID.ProteinList.keySet()) {
                 proWriter.write(key + "\t");
+                for (final LCMSID IDsummary : FileList) {
+                    if (IDsummary.ProteinList.containsKey(key)) {
+                        final ProtID protein = IDsummary.ProteinList.get(key);
+                        proWriter.write(String.join("|", fragselection.TopPeps.get(protein.getAccNo())));
+                        break;
+                    }
+                }
+                proWriter.write("\t");
                 for (LCMSID IDsummary : FileList) {
                     if (IDsummary.ProteinList.containsKey(key)) {
                         ProtID protein = IDsummary.ProteinList.get(key);
@@ -171,7 +180,7 @@ public class ExportTable {
         }
 
         pepWriter.write("Peptide Key\tSequence\tModSeq\tProteins\tmz\tCharge\tMaxProb\t");
-
+        pepWriter.write("Selected_fragments\t");
         for (LCMSID IDSummary : FileList) {
             String file = FilenameUtils.getBaseName(IDSummary.mzXMLFileName);
             pepWriter.write(file + "_Spec_Centric_Prob\t" + file + "_Pep_Centric_Prob\t" + file + "_PSMs\t" + file + "_RT\t" + file + "_MS1\t" + file + "_Top" + TopNFrag + "fra\t");
@@ -205,6 +214,21 @@ public class ExportTable {
                 }
             }
             pepWriter.write(maxprob + "\t");
+
+            for (final LCMSID IDSummary : FileList) {
+                if (IDSummary.GetPepIonList().containsKey(key)) {
+                    final PepIonID peptide = IDSummary.GetPepIonList().get(key);
+                    pepWriter.write(String.join("|", fragselection.TopFrags.get(peptide.GetKey())));
+                    break;
+                } else if (IDSummary.GetMappedPepIonList().containsKey(key)) {
+                    final PepIonID peptide = IDSummary.GetMappedPepIonList().get(key);
+                    pepWriter.write(String.join("|", fragselection.TopFrags.get(peptide.GetKey())));
+                    break;
+                } else {
+                }
+            }
+            pepWriter.write("\t");
+
             for (LCMSID IDSummary : FileList) {
                 if (IDSummary.GetPepIonList().containsKey(key)) {
                     PepIonID peptide = IDSummary.GetPepIonList().get(key);
