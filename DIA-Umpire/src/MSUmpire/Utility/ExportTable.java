@@ -149,7 +149,7 @@ public class ExportTable {
         fragWriter.write("\n");
           for (final Map.Entry<String, Float> ent : new java.util.TreeMap<>(ProteinFragMap).entrySet()) {
             final String key = ent.getKey();
-            fragWriter.write(key + "\t" + key.split(";")[0] + "\t" + key.split(";")[1] + "\t" + key.split(";")[2] + "\t" + ent.getValue() + "\t");
+            fragWriter.write(key + "\t" + key.split(";")[0] + "\t" + key.split(";")[1] + "\t" + key.split(";")[2] + key.split(";")[3] + "\t" + ent.getValue() + "\t");
             for (LCMSID IDSummary : FileList) {
                 if (IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).containsKey(key)) {
                     FragmentPeak fragmentPeak = IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).get(key);
@@ -269,7 +269,7 @@ public class ExportTable {
         }
         fragWriter.write("\n");
         for (String key : ProteinFragMap.keySet()) {
-            fragWriter.write(key + "\t"  + key.split(";")[0] + "\t" + key.split(";")[1] + "\t" + ProteinFragMap.get(key) + "\t");
+            fragWriter.write(key + "\t" + key.split(";")[0] + "\t" + key.split(";")[1] + key.split(";")[2] + "\t" + ProteinFragMap.get(key) + "\t");
             for (LCMSID IDSummary : FileList) {
                 if (IDSummaryFragments!=null && IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).containsKey(key)) {
                     FragmentPeak fragmentPeak = IDSummaryFragments.get(FilenameUtils.getBaseName(IDSummary.mzXMLFileName)).get(key);
