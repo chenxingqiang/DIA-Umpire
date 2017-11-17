@@ -628,8 +628,9 @@ public class FragmentLibManager implements Serializable {
     }
 
     //Select topN high quality fragments
-    public void FragmentSelection(ArrayList<LCMSID> LCMSIDList, float Freq, int TopNFrag) {
+    public void FragmentSelection(ArrayList<LCMSID> LCMSIDList, float Freq, int TopNFrag, final float MinFloatMz) {
         fragselection = new FragmentSelection(LCMSIDList);
+        fragselection.MinFragMZ = MinFloatMz;
         fragselection.freqPercent = Freq;
         fragselection.GeneratePepFragScoreMap();
         fragselection.FillMissingFragScoreMap();
@@ -637,8 +638,8 @@ public class FragmentLibManager implements Serializable {
     }
     
     //Build internal spectral library
-    public void ImportFragLibTopFrag(ArrayList<LCMSID> LCMSIDList, float Freq, int topNFrag) {
-        FragmentSelection(LCMSIDList, Freq, topNFrag);
+    public void ImportFragLibTopFrag(ArrayList<LCMSID> LCMSIDList, float Freq, int topNFrag, final float MinFloatMz) {
+        FragmentSelection(LCMSIDList, Freq, topNFrag, MinFloatMz);
         for (LCMSID lcmsid : LCMSIDList) {
             for (PepIonID pepIonID : lcmsid.GetPepIonList().values()) {
                 if (!PeptideFragmentLib.containsKey(pepIonID.GetKey())) {

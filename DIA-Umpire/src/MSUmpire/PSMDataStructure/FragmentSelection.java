@@ -20,7 +20,10 @@
 package MSUmpire.PSMDataStructure;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.io.FilenameUtils;
 
 /**
@@ -32,12 +35,13 @@ public class FragmentSelection {
 
     ArrayList<LCMSID> FileList;
     public HashMap<String, HashMap<String, Float>> PepFragScore = new HashMap<>();
+    final private Map<String, Map<String, Boolean>> PepFragIncluded = new HashMap<>();
     public HashMap<String, HashMap<String, Float>> ProtPepScore = new HashMap<>();
     public HashMap<String, ArrayList<String>> TopFrags = new HashMap<>();
     public HashMap<String, ArrayList<String>> TopPeps = new HashMap<>();
     public HashMap<String, HashMap<String, Float>> FragInt = new HashMap<>();
     public float freqPercent = 0f;
-    public float MinFragMZ = 200f;
+    public float MinFragMZ = Float.NaN;
     public float CorrelationThreshold = 0.6f;
     public int NoConsecutiveRun = 3;
     public Scoring scoring = Scoring.IntensityCorr;
@@ -69,7 +73,8 @@ public class FragmentSelection {
             int IDNo = 0;
             HashMap<String, Float> fragmentscore = new HashMap<>();
             HashMap<String, Integer> fragmentfreq = new HashMap<>();
-
+            final Map<String, Boolean> FragIncluded = new HashMap<>();
+            PepFragIncluded.put(PepKey, FragIncluded);
             for (LCMSID IDSummary : FileList) {
                 PepIonID pep = null;
                 if (IDSummary.GetPepIonList().containsKey(PepKey)) {
@@ -97,6 +102,8 @@ public class FragmentSelection {
                             }
                             FragInt.get(pep.GetKey() + "_" + frag.GetFragKey()).put(FilenameUtils.getBaseName(IDSummary.Filename), frag.intensity);
                         }
+                        FragIncluded.put(frag.GetFragKey(), frag.FragMZ >= MinFragMZ);
+//                        System.out.println(":::"+(frag.FragMZ >= MinFragMZ));
                     }
                 }
             }
@@ -183,12 +190,13 @@ public class FragmentSelection {
     public void GenerateTopFragMap(int topNFrag) {
         for (String PepKey : PepFragScore.keySet()) {
             HashMap<String, Float> Frags = PepFragScore.get(PepKey);
+            final Map<String, Boolean> FragIncluded = PepFragIncluded.get(PepKey);
             ArrayList<String> frags = new ArrayList<>();
             for (int i = 0; i < topNFrag; i++) {
                 float bestscore = 0f;
                 String bestfrag = "";
                 for (String frag : Frags.keySet()) {
-                    if (!frags.contains(frag) && Frags.get(frag) > bestscore) {
+                    if (!frags.contains(frag) && Frags.get(frag) > bestscore && FragIncluded.get(frag)) {
                         bestscore = Frags.get(frag);
                         bestfrag = frag;
                     }
@@ -196,6 +204,40 @@ public class FragmentSelection {
                 if (!"".equals(bestfrag)) {
                     frags.add(bestfrag);
                 }
+            }
+            TopFrags.put(PepKey, frags);
+        }
+    }
+
+    private class Pair<K, V> {
+
+        K key;
+        V val;
+
+        public Pair(K key, V val) {
+            this.key = key;
+            this.val = val;
+        }
+
+    }
+
+    public void GenerateTopFragMap2(int topNFrag, Map<String, Map<String, Float>> pepFragScore, final Map<String, List<String>> topFragsOut) {
+        // redoing the original, by Dimitry
+        for (String PepKey : PepFragScore.keySet()) {
+            List<Pair<String, Float>> list = new ArrayList<>();
+            Map<String, Float> Frags = PepFragScore.get(PepKey);
+            for (Map.Entry<String, Float> e : Frags.entrySet()) {
+                list.add(new Pair(e.getKey(), e.getValue()));
+            }
+            list.sort(new Comparator<Pair<String, Float>>() {
+                @Override
+                public int compare(Pair<String, Float> o1, Pair<String, Float> o2) {
+                    return Double.compare(o2.val, o1.val);
+                }
+            });
+            ArrayList<String> frags = new ArrayList<>(topNFrag);
+            for (int i = 0; i < topNFrag; i++) {
+                frags.add(list.get(i).key);
             }
             TopFrags.put(PepKey, frags);
         }

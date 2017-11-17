@@ -463,7 +463,7 @@ public class DIA_Umpire_Quant {
                     for (DIAPack dia : FileList) {
                         LCMSIDList.add(dia.IDsummary);
                     }
-                    libManager.ImportFragLibTopFrag(LCMSIDList, Freq, TopNFrag);
+                    libManager.ImportFragLibTopFrag(LCMSIDList, Freq, TopNFrag, MinFragMz);
                     libManager.WriteFragmentLibSerialization(WorkFolder);
                 }
                 libManager.ReduceMemoryUsage();
